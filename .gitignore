@@ -1,0 +1,24 @@
+# Java / Maven / Eclipse / IntelliJ
+target/
+bin/
+.classpath
+.project
+.settings/
+.idea/
+*.iml
+*.class
+
+# Configuración local y secretos
+.env
+.env.*
+!.env.example
+application-local.properties
+*.key
+
+# Datos descargados (no redistribuir fuentes de terceros sin permiso)
+data/
+*.csv
+
+# OS
+.DS_Store
+Thumbs.db
