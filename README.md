@@ -8,7 +8,7 @@ Aplicación de escritorio en **Java 21 + JavaFX + MySQL** para consultar varias 
 - Clasificación y búsquedas por temporada, equipo y fecha.
 - Más adelante: predicciones de 1X2, goles, córners y tarjetas por partido futuro, y simulación de la clasificación final.
 - Fuente histórica inicial: archivos CSV de https://www.football-data.co.uk/spainm.php (descarga manual, condiciones de uso de la fuente).
-- Todas las estadísticas importadas se guardan en MySQL y se consultan en la aplicación.
+- Todas las estadísticas importadas se guardan en MySQL y la primera tabla ofrece goles, remates, remates a puerta, córners, tarjetas y faltas si están disponibles.
 
 **Importante:** los resultados futuros nunca se tratan como si fueran hechos; las predicciones se identificarán como estimaciones y tendrán pruebas retrospectivas. No se incluyen claves ni credenciales reales.
 

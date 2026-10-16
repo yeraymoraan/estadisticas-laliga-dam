@@ -10,8 +10,8 @@ class ClasificacionServiceTest {
     @Test void calculaPuntosYBalance() {
         var dia = LocalDate.of(2025,8,16);
         var encuentros = List.of(
-            new PartidoVista(dia,"A","B",2,1,null,null,null,null,null,null),
-            new PartidoVista(dia.plusDays(1),"B","A",0,0,null,null,null,null,null,null)
+            new PartidoVista(dia,"A","B",2,1,null,null,null,null,null,null,null,null,null,null,null,null),
+            new PartidoVista(dia.plusDays(1),"B","A",0,0,null,null,null,null,null,null,null,null,null,null,null,null)
         );
         var tabla = new ClasificacionService().calcular(encuentros);
         assertEquals("A",tabla.get(0).equipo());

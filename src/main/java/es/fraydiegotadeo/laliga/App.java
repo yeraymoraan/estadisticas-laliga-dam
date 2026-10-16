@@ -57,8 +57,11 @@ public final class App extends Application {
         columna(tabla, "Visitante", PartidoVista::visitante, 150);
         columna(tabla, "Resultado", PartidoVista::resultado, 100);
         columna(tabla, "Remates", PartidoVista::remates, 105);
+        columna(tabla, "A puerta", PartidoVista::rematesPuerta, 105);
         columna(tabla, "Córners", PartidoVista::corners, 105);
         columna(tabla, "Amarillas", PartidoVista::amarillas, 105);
+        columna(tabla, "Rojas", PartidoVista::rojas, 105);
+        columna(tabla, "Faltas", PartidoVista::faltas, 105);
         tabla.setPlaceholder(new Label("Importa un CSV de LaLiga o selecciona una temporada."));
 
         columna(clasificacion, "Equipo", ClasificacionService.Fila::equipo, 170);

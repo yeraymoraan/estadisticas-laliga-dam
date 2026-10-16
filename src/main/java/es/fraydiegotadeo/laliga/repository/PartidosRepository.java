@@ -24,8 +24,9 @@ public final class PartidosRepository {
         String sql = """
             SELECT p.fecha, el.nombre AS local, ev.nombre AS visitante,
                    p.goles_local, p.goles_visitante,
-                   p.remates_local, p.remates_visitante, p.corners_local, p.corners_visitante,
-                   p.amarillas_local, p.amarillas_visitante
+                   p.remates_local, p.remates_visitante, p.remates_puerta_local, p.remates_puerta_visitante,
+                   p.corners_local, p.corners_visitante, p.amarillas_local, p.amarillas_visitante,
+                   p.rojas_local, p.rojas_visitante, p.faltas_local, p.faltas_visitante
               FROM partidos p
               JOIN temporadas t ON t.id = p.temporada_id
               JOIN equipos el ON el.id = p.equipo_local_id
@@ -42,10 +43,16 @@ public final class PartidosRepository {
                         rs.getString("visitante"), rs.getInt("goles_local"),
                         rs.getInt("goles_visitante"), rs.getObject("remates_local", Integer.class),
                         rs.getObject("remates_visitante", Integer.class),
+                        rs.getObject("remates_puerta_local", Integer.class),
+                        rs.getObject("remates_puerta_visitante", Integer.class),
                         rs.getObject("corners_local", Integer.class),
                         rs.getObject("corners_visitante", Integer.class),
                         rs.getObject("amarillas_local", Integer.class),
-                        rs.getObject("amarillas_visitante", Integer.class)));
+                        rs.getObject("amarillas_visitante", Integer.class),
+                        rs.getObject("rojas_local", Integer.class),
+                        rs.getObject("rojas_visitante", Integer.class),
+                        rs.getObject("faltas_local", Integer.class),
+                        rs.getObject("faltas_visitante", Integer.class)));
                 return partidos;
             }
         }
