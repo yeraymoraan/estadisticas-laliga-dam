@@ -34,7 +34,7 @@ public final class CsvPartidosParser {
         buffered.mark(1);
         if (buffered.read() != '\uFEFF') buffered.reset();
         CSVFormat formato = CSVFormat.DEFAULT.builder()
-                .setHeader().setSkipHeaderRecord(true).setIgnoreSurroundingSpaces(true).get();
+                .setHeader().setSkipHeaderRecord(true).setIgnoreSurroundingSpaces(true).build();
 
         List<PartidoHistorico> resultado = new ArrayList<>();
         try (CSVParser parser = formato.parse(buffered)) {
