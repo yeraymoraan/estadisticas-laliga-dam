@@ -31,6 +31,8 @@ explicar el código generado con IA. Por eso el código debe ser el que escribir
 
 - `main` debe estar siempre estable. Cada funcionalidad en una rama (`feat/...`, `fix/...`, `docs/...`, `chore/...`) y Pull Request.
 - Commits convencionales en español: `feat:`, `fix:`, `test:`, `docs:`, `chore:`, `refactor:`.
+- Los commits los hace el alumno desde IntelliJ tras revisar cada cambio; Claude propone el mensaje.
+  El uso de IA se declara en la memoria del proyecto.
 - Nunca reescribir historial, forzar push ni subir credenciales, `.env` o los CSV de `data/`.
 - Pedir aprobación antes de fusionar, borrar ramas o cualquier acción destructiva.
 

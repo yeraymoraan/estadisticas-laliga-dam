@@ -8,6 +8,9 @@ bin/
 *.iml
 *.class
 
+# Configuración local de Claude Code (personal, no se comparte)
+.claude/settings.local.json
+
 # Configuración local y secretos
 .env
 .env.*
