@@ -14,10 +14,10 @@ Aplicación de escritorio en **Java 21 + JavaFX + MySQL** para consultar varias 
 
 ## Primeros pasos (Windows)
 
-1. Instalar **JDK 21**, **Maven**, **MySQL 8** y opcionalmente Eclipse.
+1. Instalar **JDK 21**, **MySQL Community Server** (probado con 26.10) e **IntelliJ IDEA** (no hace falta instalar Maven: el proyecto incluye Maven Wrapper).
 2. Ejecutar el script `sql/schema.sql` en MySQL.
 3. Configurar variables de entorno `LALIGA_DB_URL`, `LALIGA_DB_USER`, `LALIGA_DB_PASSWORD` (ver `.env.example`; **no** subir contraseñas).
-4. En la carpeta del proyecto: `mvn clean test` y `mvn javafx:run`.
+4. En IntelliJ: configuración **LaLiga App** (botón Run/Debug) o **Tests (mvn clean test)**. Desde terminal: `.\mvnw.cmd clean test` y `.\mvnw.cmd javafx:run`.
 5. Descargar manualmente uno o varios CSV de Primera División (`SP1`). Dentro de la aplicación, seleccionar **Importar CSV**, indicar el año de inicio de la temporada (ej. 2025 para 2025/26) y escoger el archivo.
 6. Seleccionar la temporada para consultar partidos y datos disponibles.
 

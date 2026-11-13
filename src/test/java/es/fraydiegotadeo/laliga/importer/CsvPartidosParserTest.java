@@ -1,28 +1,45 @@
 package es.fraydiegotadeo.laliga.importer;
 
+import es.fraydiegotadeo.laliga.model.PartidoHistorico;
 import org.junit.jupiter.api.Test;
-import java.io.StringReader;
-import static org.junit.jupiter.api.Assertions.*;
 
+import java.io.IOException;
+import java.io.StringReader;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+/**
+ * Pruebas unitarias del lector de CSV. Se usa un texto en memoria (StringReader) en lugar de
+ * un archivo, así la prueba no depende de tener descargado ningún CSV.
+ */
 class CsvPartidosParserTest {
-    @Test void importaResultadosYConservaNulos() throws Exception {
+
+    @Test
+    void importaResultadosYConservaNulos() throws Exception {
+        // Fila 1: sin tarjetas. Fila 2: sin córners. Fila 3: partido sin jugar (sin goles).
         String csv = """
-            Div,Date,HomeTeam,AwayTeam,FTHG,FTAG,HC,AC,HY,AY
-            SP1,16/08/2025,Equipo A,Equipo B,2,1,6,4,,
-            SP1,17/08/2025,Equipo C,Equipo D,0,0,,,2,1
-            SP1,18/08/2025,Equipo E,Equipo F,,,2,3,1,1
-            """;
-        var registros = new CsvPartidosParser().leer(new StringReader(csv));
-        assertEquals(2, registros.size()); // El tercero está pendiente y no se importa.
-        assertEquals(2, registros.get(0).golesLocal());
-        assertEquals(6, registros.get(0).cornersLocal());
-        assertNull(registros.get(0).amarillasLocal());
-        assertNull(registros.get(1).cornersLocal());
+                Div,Date,HomeTeam,AwayTeam,FTHG,FTAG,HC,AC,HY,AY
+                SP1,16/08/2025,Equipo A,Equipo B,2,1,6,4,,
+                SP1,17/08/2025,Equipo C,Equipo D,0,0,,,2,1
+                SP1,18/08/2025,Equipo E,Equipo F,,,2,3,1,1
+                """;
+
+        List<PartidoHistorico> partidos = new CsvPartidosParser().leer(new StringReader(csv));
+
+        assertEquals(2, partidos.size()); // El tercero está pendiente y no se importa
+        assertEquals(2, partidos.get(0).golesLocal());
+        assertEquals(6, partidos.get(0).cornersLocal());
+        assertNull(partidos.get(0).amarillasLocal()); // Dato ausente → null, no 0
+        assertNull(partidos.get(1).cornersLocal());
     }
 
-    @Test void rechazaCSVSinCabecerasObligatorias() {
+    @Test
+    void rechazaCsvSinCabecerasObligatorias() {
         String csv = "Date,HomeTeam\n16/08/2025,Equipo A\n";
-        assertThrows(java.io.IOException.class,
-                () -> new CsvPartidosParser().leer(new StringReader(csv)));
+
+        assertThrows(IOException.class, () -> new CsvPartidosParser().leer(new StringReader(csv)));
     }
 }
