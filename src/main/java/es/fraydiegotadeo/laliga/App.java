@@ -1,6 +1,7 @@
 package es.fraydiegotadeo.laliga;
 
 import es.fraydiegotadeo.laliga.importer.CsvPartidosParser;
+import es.fraydiegotadeo.laliga.model.PartidoHistorico;
 import es.fraydiegotadeo.laliga.model.PartidoVista;
 import es.fraydiegotadeo.laliga.repository.PartidosRepository;
 import es.fraydiegotadeo.laliga.service.ClasificacionService;
@@ -9,174 +10,282 @@ import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
-import javafx.scene.control.*;
-import javafx.scene.layout.*;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.Tab;
+import javafx.scene.control.TabPane;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
+import javafx.scene.control.TextField;
+import javafx.scene.control.TextInputDialog;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+
 import java.io.File;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Function;
 
-/** Primera pantalla: importación manual de CSV y consulta de los resultados históricos. */
+/**
+ * Ventana principal (provisional): importar un CSV y consultar partidos y clasificación por temporada.
+ *
+ * Una aplicación JavaFX hereda de Application. JavaFX llama a start() al arrancar y nos da el
+ * Stage (la ventana). Dentro del Stage se pone una Scene con los controles organizados en
+ * contenedores (VBox = en columna, HBox = en fila).
+ *
+ * Más adelante esta clase se dividirá en varias pantallas para separar mejor la interfaz de la lógica.
+ */
 public final class App extends Application {
-    private final PartidosRepository repo = new PartidosRepository();
+
+    // Objetos de las otras capas que usa la interfaz
+    private final PartidosRepository repositorio = new PartidosRepository();
     private final CsvPartidosParser parser = new CsvPartidosParser();
-    private final ClasificacionService clasificador = new ClasificacionService();
-    private final ComboBox<Integer> temporadas = new ComboBox<>();
-    private final TextField busqueda = new TextField();
-    private final TableView<PartidoVista> tabla = new TableView<>();
-    private final TableView<ClasificacionService.Fila> clasificacion = new TableView<>();
+    private final ClasificacionService servicioClasificacion = new ClasificacionService();
+
+    // Controles de la ventana que se usan desde varios métodos
+    private final ComboBox<Integer> selectorTemporada = new ComboBox<>();
+    private final TextField filtroEquipo = new TextField();
+    private final TableView<PartidoVista> tablaPartidos = new TableView<>();
+    private final TableView<ClasificacionService.Fila> tablaClasificacion = new TableView<>();
     private final Label estado = new Label("Selecciona una temporada o importa un CSV real.");
-    private List<PartidoVista> cargados = new ArrayList<>();
 
-    public static void main(String[] args) { launch(args); }
+    /** Partidos de la temporada seleccionada, sin filtrar. */
+    private List<PartidoVista> partidosCargados = new ArrayList<>();
 
-    @Override public void start(Stage stage) {
-        stage.setTitle("LaLiga Stats · Proyecto DAM");
+    public static void main(String[] args) {
+        launch(args);
+    }
+
+    @Override
+    public void start(Stage ventana) {
+        ventana.setTitle("LaLiga Stats · Proyecto DAM");
+
         Label titulo = new Label("Histórico de Primera División española");
         titulo.setStyle("-fx-font-size: 22px; -fx-font-weight: bold;");
-        busqueda.setPromptText("Filtrar por equipo");
-        busqueda.textProperty().addListener((o,antes,ahora) -> filtrar());
 
-        Button importar = new Button("Importar CSV");
-        importar.setOnAction(e -> importar(stage));
-        Button actualizar = new Button("Actualizar");
-        actualizar.setOnAction(e -> cargarTemporadas());
-        temporadas.setPromptText("Temporada");
-        temporadas.setOnAction(e -> cargarPartidos());
-
-        HBox barra = new HBox(10, new Label("Temporada:"), temporadas, busqueda, actualizar, importar);
-        barra.setStyle("-fx-alignment: center-left;");
-        HBox.setHgrow(busqueda, Priority.ALWAYS);
-
-        columna(tabla, "Fecha", p -> p.fecha().toString(), 100);
-        columna(tabla, "Local", PartidoVista::local, 150);
-        columna(tabla, "Visitante", PartidoVista::visitante, 150);
-        columna(tabla, "Resultado", PartidoVista::resultado, 100);
-        columna(tabla, "Remates", PartidoVista::remates, 105);
-        columna(tabla, "A puerta", PartidoVista::rematesPuerta, 105);
-        columna(tabla, "Córners", PartidoVista::corners, 105);
-        columna(tabla, "Amarillas", PartidoVista::amarillas, 105);
-        columna(tabla, "Rojas", PartidoVista::rojas, 105);
-        columna(tabla, "Faltas", PartidoVista::faltas, 105);
-        tabla.setPlaceholder(new Label("Importa un CSV de LaLiga o selecciona una temporada."));
-
-        columna(clasificacion, "Equipo", ClasificacionService.Fila::equipo, 170);
-        columna(clasificacion, "PJ", f -> ""+f.jugados(), 62);
-        columna(clasificacion, "V", f -> ""+f.victorias(), 55);
-        columna(clasificacion, "E", f -> ""+f.empates(), 55);
-        columna(clasificacion, "D", f -> ""+f.derrotas(), 55);
-        columna(clasificacion, "GF", f -> ""+f.golesFavor(), 60);
-        columna(clasificacion, "GC", f -> ""+f.golesContra(), 60);
-        columna(clasificacion, "DG", f -> ""+f.diferencia(), 60);
-        columna(clasificacion, "Pts", f -> ""+f.puntos(), 65);
-
-        VBox panelClasificacion = new VBox(6,
-                new Label("Clasificación calculada. Desempate simplificado por diferencia de goles; no equivale al criterio oficial de LaLiga."),
-                clasificacion);
-        VBox.setVgrow(clasificacion, Priority.ALWAYS);
-        Tab partidosTab = new Tab("Partidos", tabla);
-        Tab clasificacionTab = new Tab("Clasificación", panelClasificacion);
-        partidosTab.setClosable(false);
-        clasificacionTab.setClosable(false);
-        TabPane pestanias = new TabPane(partidosTab, clasificacionTab);
-        VBox.setVgrow(pestanias, Priority.ALWAYS);
-
+        configurarTablaPartidos();
+        configurarTablaClasificacion();
         estado.setWrapText(true);
-        VBox raiz = new VBox(13, titulo, barra, pestanias, estado);
+
+        // Composición de la ventana de arriba a abajo
+        VBox raiz = new VBox(13, titulo, crearBarraSuperior(ventana), crearPestanias(), estado);
         raiz.setPadding(new Insets(17));
-        Scene scene = new Scene(raiz, 1050, 620);
-        stage.setScene(scene);
-        stage.show();
+
+        ventana.setScene(new Scene(raiz, 1050, 620));
+        ventana.show();
+
         cargarTemporadas();
     }
 
-    private static <T> void columna(TableView<T> vista, String nombre,
-                                    Function<T,String> texto, double ancho) {
-        TableColumn<T,String> col = new TableColumn<>(nombre);
-        col.setCellValueFactory(d -> new ReadOnlyStringWrapper(texto.apply(d.getValue())));
-        col.setPrefWidth(ancho);
-        vista.getColumns().add(col);
+    /** Barra con el selector de temporada, el filtro y los botones. */
+    private HBox crearBarraSuperior(Stage ventana) {
+        selectorTemporada.setPromptText("Temporada");
+        selectorTemporada.setOnAction(evento -> cargarPartidos());
+
+        filtroEquipo.setPromptText("Filtrar por equipo");
+        // Listener: cada vez que cambia el texto del filtro se vuelve a filtrar la tabla
+        filtroEquipo.textProperty().addListener((propiedad, textoAnterior, textoNuevo) -> filtrar());
+
+        Button botonActualizar = new Button("Actualizar");
+        botonActualizar.setOnAction(evento -> cargarTemporadas());
+
+        Button botonImportar = new Button("Importar CSV");
+        botonImportar.setOnAction(evento -> importar(ventana));
+
+        HBox barra = new HBox(10, new Label("Temporada:"), selectorTemporada, filtroEquipo,
+                botonActualizar, botonImportar);
+        barra.setStyle("-fx-alignment: center-left;");
+        // El filtro ocupa todo el espacio libre de la barra
+        HBox.setHgrow(filtroEquipo, Priority.ALWAYS);
+        return barra;
     }
 
+    private TabPane crearPestanias() {
+        Label avisoDesempate = new Label("Clasificación calculada. Desempate simplificado por diferencia "
+                + "de goles; no equivale al criterio oficial de LaLiga.");
+        VBox panelClasificacion = new VBox(6, avisoDesempate, tablaClasificacion);
+        VBox.setVgrow(tablaClasificacion, Priority.ALWAYS);
+
+        Tab pestaniaPartidos = new Tab("Partidos", tablaPartidos);
+        Tab pestaniaClasificacion = new Tab("Clasificación", panelClasificacion);
+        pestaniaPartidos.setClosable(false);
+        pestaniaClasificacion.setClosable(false);
+
+        TabPane pestanias = new TabPane(pestaniaPartidos, pestaniaClasificacion);
+        VBox.setVgrow(pestanias, Priority.ALWAYS);
+        return pestanias;
+    }
+
+    private void configurarTablaPartidos() {
+        agregarColumna(tablaPartidos, "Fecha", partido -> partido.fecha().toString(), 100);
+        agregarColumna(tablaPartidos, "Local", PartidoVista::local, 150);
+        agregarColumna(tablaPartidos, "Visitante", PartidoVista::visitante, 150);
+        agregarColumna(tablaPartidos, "Resultado", PartidoVista::resultado, 100);
+        agregarColumna(tablaPartidos, "Remates", PartidoVista::remates, 105);
+        agregarColumna(tablaPartidos, "A puerta", PartidoVista::rematesPuerta, 105);
+        agregarColumna(tablaPartidos, "Córners", PartidoVista::corners, 105);
+        agregarColumna(tablaPartidos, "Amarillas", PartidoVista::amarillas, 105);
+        agregarColumna(tablaPartidos, "Rojas", PartidoVista::rojas, 105);
+        agregarColumna(tablaPartidos, "Faltas", PartidoVista::faltas, 105);
+        tablaPartidos.setPlaceholder(new Label("Importa un CSV de LaLiga o selecciona una temporada."));
+    }
+
+    private void configurarTablaClasificacion() {
+        agregarColumna(tablaClasificacion, "Equipo", ClasificacionService.Fila::equipo, 170);
+        agregarColumna(tablaClasificacion, "PJ", fila -> String.valueOf(fila.jugados()), 62);
+        agregarColumna(tablaClasificacion, "V", fila -> String.valueOf(fila.victorias()), 55);
+        agregarColumna(tablaClasificacion, "E", fila -> String.valueOf(fila.empates()), 55);
+        agregarColumna(tablaClasificacion, "D", fila -> String.valueOf(fila.derrotas()), 55);
+        agregarColumna(tablaClasificacion, "GF", fila -> String.valueOf(fila.golesFavor()), 60);
+        agregarColumna(tablaClasificacion, "GC", fila -> String.valueOf(fila.golesContra()), 60);
+        agregarColumna(tablaClasificacion, "DG", fila -> String.valueOf(fila.diferencia()), 60);
+        agregarColumna(tablaClasificacion, "Pts", fila -> String.valueOf(fila.puntos()), 65);
+    }
+
+    /**
+     * Añade una columna de texto a una tabla. Es genérico (<T>) para servir tanto para la tabla
+     * de partidos como para la de clasificación.
+     *
+     * @param tabla  tabla a la que se añade la columna
+     * @param nombre título de la columna
+     * @param texto  función que, dado un objeto de la fila, devuelve el texto a mostrar
+     * @param ancho  ancho preferido en píxeles
+     */
+    private static <T> void agregarColumna(TableView<T> tabla, String nombre,
+                                           Function<T, String> texto, double ancho) {
+        TableColumn<T, String> columna = new TableColumn<>(nombre);
+        // Para cada celda, JavaFX nos da el objeto de esa fila y le aplicamos la función
+        columna.setCellValueFactory(celda -> new ReadOnlyStringWrapper(texto.apply(celda.getValue())));
+        columna.setPrefWidth(ancho);
+        tabla.getColumns().add(columna);
+    }
+
+    /** Rellena el selector con las temporadas guardadas en MySQL y carga la seleccionada. */
     private void cargarTemporadas() {
-        Integer seleccionAnterior = temporadas.getValue();
+        Integer seleccionAnterior = selectorTemporada.getValue();
         try {
-            List<Integer> anios = repo.listarTemporadas();
-            temporadas.getItems().setAll(anios);
-            if (!anios.isEmpty()) {
-                temporadas.setValue(seleccionAnterior != null && anios.contains(seleccionAnterior)
-                        ? seleccionAnterior : anios.get(0));
-                cargarPartidos();
-            } else {
-                cargados = List.of();
+            List<Integer> anios = repositorio.listarTemporadas();
+            selectorTemporada.getItems().setAll(anios);
+
+            if (anios.isEmpty()) {
+                partidosCargados = List.of();
                 filtrar();
                 estado.setText("Base de datos vacía. Descarga un CSV de Primera División (SP1) e impórtalo.");
+                return;
             }
-        } catch (SQLException ex) { error("No se puede acceder a MySQL: " + ex.getMessage()); }
+
+            // Mantener la temporada que estaba elegida; si ya no existe, elegir la más reciente
+            if (seleccionAnterior != null && anios.contains(seleccionAnterior)) {
+                selectorTemporada.setValue(seleccionAnterior);
+            } else {
+                selectorTemporada.setValue(anios.get(0));
+            }
+            cargarPartidos();
+        } catch (SQLException ex) {
+            mostrarError("No se puede acceder a MySQL: " + ex.getMessage());
+        }
     }
 
+    /** Consulta en MySQL los partidos de la temporada seleccionada. */
     private void cargarPartidos() {
-        if (temporadas.getValue() == null) return;
+        Integer temporada = selectorTemporada.getValue();
+        if (temporada == null) {
+            return;
+        }
         try {
-            cargados = repo.listarPartidos(temporadas.getValue());
+            partidosCargados = repositorio.listarPartidos(temporada);
             filtrar();
-            estado.setText("Temporada " + temporadas.getValue() + "/"
-                    + String.format("%02d",(temporadas.getValue()+1)%100)
-                    + " · " + cargados.size() + " partidos importados");
-        } catch (SQLException ex) { error("Error al consultar MySQL: " + ex.getMessage()); }
+            estado.setText("Temporada " + temporada + "/" + String.format("%02d", (temporada + 1) % 100)
+                    + " · " + partidosCargados.size() + " partidos importados");
+        } catch (SQLException ex) {
+            mostrarError("Error al consultar MySQL: " + ex.getMessage());
+        }
     }
 
+    /** Muestra en la tabla solo los partidos del equipo escrito en el filtro y recalcula la clasificación. */
     private void filtrar() {
-        String filtro = busqueda.getText() == null ? "" : busqueda.getText().trim().toLowerCase();
-        List<PartidoVista> visibles = cargados.stream()
-                .filter(p -> p.local().toLowerCase().contains(filtro)
-                          || p.visitante().toLowerCase().contains(filtro))
-                .toList();
-        tabla.setItems(FXCollections.observableArrayList(visibles));
-        // Clasificación de todos los partidos de temporada, no de la búsqueda por equipo.
-        clasificacion.setItems(FXCollections.observableArrayList(clasificador.calcular(cargados)));
+        String filtro = filtroEquipo.getText() == null ? "" : filtroEquipo.getText().trim().toLowerCase();
+
+        List<PartidoVista> visibles = new ArrayList<>();
+        for (PartidoVista partido : partidosCargados) {
+            if (partido.local().toLowerCase().contains(filtro)
+                    || partido.visitante().toLowerCase().contains(filtro)) {
+                visibles.add(partido);
+            }
+        }
+        tablaPartidos.setItems(FXCollections.observableArrayList(visibles));
+
+        // La clasificación usa siempre todos los partidos de la temporada, no solo los filtrados
+        tablaClasificacion.setItems(FXCollections.observableArrayList(
+                servicioClasificacion.calcular(partidosCargados)));
     }
 
-    private void importar(Stage stage) {
-        FileChooser dialogo = new FileChooser();
-        dialogo.setTitle("Selecciona el archivo CSV de Primera División española");
-        dialogo.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV (*.csv)", "*.csv"));
-        File archivo = dialogo.showOpenDialog(stage);
-        if (archivo == null) return;
+    /** Pide un CSV y el año de la temporada, lo lee y lo guarda en MySQL. */
+    private void importar(Stage ventana) {
+        FileChooser dialogoArchivo = new FileChooser();
+        dialogoArchivo.setTitle("Selecciona el archivo CSV de Primera División española");
+        dialogoArchivo.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV (*.csv)", "*.csv"));
+        File archivo = dialogoArchivo.showOpenDialog(ventana);
+        if (archivo == null) {
+            return; // El usuario ha cancelado
+        }
 
-        TextInputDialog prompt = new TextInputDialog("2025");
-        prompt.setTitle("Importar temporada");
-        prompt.setHeaderText("Indica el primer año de la temporada del CSV");
-        prompt.setContentText("Ejemplo: 2025 para 2025/26");
-        var valor = prompt.showAndWait();
-        if (valor.isEmpty()) return;
-        int inicio;
-        try {
-            inicio = Integer.parseInt(valor.get().trim());
-            if (inicio < 2000 || inicio > LocalDate.now().getYear())
-                throw new NumberFormatException("Año fuera de rango");
-        } catch (NumberFormatException ex) {
-            error("Año incorrecto: escribe el año inicial, por ejemplo 2025.");
+        Integer inicio = pedirAnioTemporada();
+        if (inicio == null) {
             return;
         }
 
         try {
-            int cantidad = repo.importar(inicio, parser.leer(archivo.toPath()));
+            List<PartidoHistorico> partidos = parser.leer(archivo.toPath());
+            int cantidad = repositorio.importar(inicio, partidos);
             cargarTemporadas();
-            temporadas.setValue(inicio);
+            selectorTemporada.setValue(inicio);
             cargarPartidos();
-            estado.setText("CSV importado: " + cantidad
-                    + " partidos leídos (reimportar actualiza, no duplica).");
+            estado.setText("CSV importado: " + cantidad + " partidos leídos (reimportar actualiza, no duplica).");
         } catch (Exception ex) {
-            error("Error al importar CSV: " + ex.getMessage());
+            mostrarError("Error al importar CSV: " + ex.getMessage());
         }
     }
 
-    private void error(String mensaje) {
+    /**
+     * Pregunta el año de inicio de la temporada del CSV.
+     *
+     * @return el año, o null si el usuario cancela o escribe un valor no válido
+     */
+    private Integer pedirAnioTemporada() {
+        TextInputDialog dialogo = new TextInputDialog("2025");
+        dialogo.setTitle("Importar temporada");
+        dialogo.setHeaderText("Indica el primer año de la temporada del CSV");
+        dialogo.setContentText("Ejemplo: 2025 para 2025/26");
+
+        Optional<String> respuesta = dialogo.showAndWait();
+        if (respuesta.isEmpty()) {
+            return null;
+        }
+        try {
+            int anio = Integer.parseInt(respuesta.get().trim());
+            // INC-03: este límite impide importar temporadas anteriores a 2000/01 (pendiente de corregir)
+            if (anio < 2000 || anio > LocalDate.now().getYear()) {
+                throw new NumberFormatException("Año fuera de rango");
+            }
+            return anio;
+        } catch (NumberFormatException ex) {
+            mostrarError("Año incorrecto: escribe el año inicial, por ejemplo 2025.");
+            return null;
+        }
+    }
+
+    /** Muestra el error en la barra de estado y en una ventana de aviso. */
+    private void mostrarError(String mensaje) {
         estado.setText(mensaje);
         Alert aviso = new Alert(Alert.AlertType.ERROR, mensaje, ButtonType.OK);
         aviso.setHeaderText("Operación no completada");
