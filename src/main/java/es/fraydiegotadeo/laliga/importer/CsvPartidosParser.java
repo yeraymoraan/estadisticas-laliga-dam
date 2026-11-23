@@ -4,6 +4,7 @@ import es.fraydiegotadeo.laliga.model.PartidoHistorico;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
+import org.apache.commons.csv.DuplicateHeaderMode;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -13,6 +14,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -35,7 +38,13 @@ public final class CsvPartidosParser {
 
     // Football-Data escribe la fecha con el año completo (16/08/2025) o con dos cifras (16/08/25)
     private static final DateTimeFormatter FECHA_LARGA = DateTimeFormatter.ofPattern("d/M/uuuu");
-    private static final DateTimeFormatter FECHA_CORTA = DateTimeFormatter.ofPattern("d/M/uu");
+
+    // Con el patrón "uu" Java pone siempre 20xx, y "02/09/95" salía como 2095.
+    // appendValueReduced con base 1950 hace que 50-99 sean 1950-1999 y 00-49 sean 2000-2049.
+    private static final DateTimeFormatter FECHA_CORTA = new DateTimeFormatterBuilder()
+            .appendPattern("d/M/")
+            .appendValueReduced(ChronoField.YEAR, 2, 2, 1950)
+            .toFormatter();
 
     /** Marca BOM: carácter invisible que algunos programas ponen al principio de los archivos UTF-8. */
     private static final int BOM = '﻿';
@@ -62,11 +71,16 @@ public final class CsvPartidosParser {
         BufferedReader buffer = new BufferedReader(lector);
         saltarBom(buffer);
 
-        // Formato: la primera fila es la cabecera y se ignoran espacios alrededor de cada valor
+        // Formato: la primera fila es la cabecera y se ignoran espacios alrededor de cada valor.
+        // Los CSV antiguos (antes de 2000) terminan la cabecera con columnas sin nombre (",,,,").
+        // setAllowMissingColumnNames deja que existan y ALLOW_EMPTY permite que haya varias vacías;
+        // como no usamos esas columnas, no pasa nada por ignorarlas.
         CSVFormat formato = CSVFormat.DEFAULT.builder()
                 .setHeader()
                 .setSkipHeaderRecord(true)
                 .setIgnoreSurroundingSpaces(true)
+                .setAllowMissingColumnNames(true)
+                .setDuplicateHeaderMode(DuplicateHeaderMode.ALLOW_EMPTY)
                 .build();
 
         List<PartidoHistorico> partidos = new ArrayList<>();

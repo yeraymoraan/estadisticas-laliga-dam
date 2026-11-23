@@ -46,6 +46,9 @@ import java.util.function.Function;
  */
 public final class App extends Application {
 
+    /** Primera temporada de LaLiga (1929). Football-Data tiene CSV desde 1993/94. */
+    private static final int PRIMER_ANIO_LALIGA = 1929;
+
     // Objetos de las otras capas que usa la interfaz
     private final PartidosRepository repositorio = new PartidosRepository();
     private final CsvPartidosParser parser = new CsvPartidosParser();
@@ -273,8 +276,8 @@ public final class App extends Application {
         }
         try {
             int anio = Integer.parseInt(respuesta.get().trim());
-            // INC-03: este límite impide importar temporadas anteriores a 2000/01 (pendiente de corregir)
-            if (anio < 2000 || anio > LocalDate.now().getYear()) {
+            // LaLiga empezó en 1929, así que no tiene sentido un año anterior ni uno del futuro
+            if (anio < PRIMER_ANIO_LALIGA || anio > LocalDate.now().getYear()) {
                 throw new NumberFormatException("Año fuera de rango");
             }
             return anio;
