@@ -50,6 +50,21 @@ public final class CsvPartidosParser {
     private static final int BOM = '﻿';
 
     /**
+     * Formato de los CSV de Football-Data: la primera fila es la cabecera y se ignoran los espacios
+     * alrededor de cada valor. Los CSV antiguos (antes de 2000) terminan la cabecera con columnas sin
+     * nombre (",,,,"): setAllowMissingColumnNames deja que existan y ALLOW_EMPTY permite que haya
+     * varias vacías. Como no usamos esas columnas, no pasa nada por ignorarlas.
+     * También lo usa CsvCalendarioParser, por eso no es private.
+     */
+    static final CSVFormat FORMATO = CSVFormat.DEFAULT.builder()
+            .setHeader()
+            .setSkipHeaderRecord(true)
+            .setIgnoreSurroundingSpaces(true)
+            .setAllowMissingColumnNames(true)
+            .setDuplicateHeaderMode(DuplicateHeaderMode.ALLOW_EMPTY)
+            .build();
+
+    /**
      * Lee un archivo CSV del disco.
      *
      * @param archivo ruta del CSV
@@ -71,20 +86,8 @@ public final class CsvPartidosParser {
         BufferedReader buffer = new BufferedReader(lector);
         saltarBom(buffer);
 
-        // Formato: la primera fila es la cabecera y se ignoran espacios alrededor de cada valor.
-        // Los CSV antiguos (antes de 2000) terminan la cabecera con columnas sin nombre (",,,,").
-        // setAllowMissingColumnNames deja que existan y ALLOW_EMPTY permite que haya varias vacías;
-        // como no usamos esas columnas, no pasa nada por ignorarlas.
-        CSVFormat formato = CSVFormat.DEFAULT.builder()
-                .setHeader()
-                .setSkipHeaderRecord(true)
-                .setIgnoreSurroundingSpaces(true)
-                .setAllowMissingColumnNames(true)
-                .setDuplicateHeaderMode(DuplicateHeaderMode.ALLOW_EMPTY)
-                .build();
-
         List<PartidoHistorico> partidos = new ArrayList<>();
-        try (CSVParser parser = formato.parse(buffer)) {
+        try (CSVParser parser = FORMATO.parse(buffer)) {
             comprobarCabeceras(parser.getHeaderNames());
 
             for (CSVRecord fila : parser) {
@@ -102,7 +105,7 @@ public final class CsvPartidosParser {
     }
 
     /** Si el archivo empieza por la marca BOM se la salta; si no, vuelve al principio. */
-    private static void saltarBom(BufferedReader buffer) throws IOException {
+    static void saltarBom(BufferedReader buffer) throws IOException {
         buffer.mark(1);
         if (buffer.read() != BOM) {
             buffer.reset();
@@ -159,8 +162,11 @@ public final class CsvPartidosParser {
         }
     }
 
-    /** Convierte "16/08/2025" o "16/08/25" en un LocalDate. */
-    private static LocalDate leerFecha(String fecha) {
+    /**
+     * Convierte "16/08/2025" o "16/08/25" en un LocalDate.
+     * No es private para que CsvCalendarioParser (mismo paquete) pueda reutilizarlo.
+     */
+    static LocalDate leerFecha(String fecha) {
         if (fecha.length() >= 10) {
             return LocalDate.parse(fecha, FECHA_LARGA);
         }
@@ -168,7 +174,7 @@ public final class CsvPartidosParser {
     }
 
     /** Devuelve el texto de una columna, o "" si la columna no existe o está vacía. */
-    private static String texto(CSVRecord fila, String columna) {
+    static String texto(CSVRecord fila, String columna) {
         if (!fila.isMapped(columna) || !fila.isSet(columna)) {
             return "";
         }
