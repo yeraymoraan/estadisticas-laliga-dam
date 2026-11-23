@@ -37,6 +37,21 @@ class CsvPartidosParserTest {
     }
 
     @Test
+    void aceptaColumnasSinNombre() throws Exception {
+        // Los CSV antiguos (por ejemplo el de 1995/96) acaban la cabecera con columnas vacías: ",,,"
+        String csv = """
+                Div,Date,HomeTeam,AwayTeam,FTHG,FTAG,,,
+                SP1,02/09/95,La Coruna,Valencia,3,0,,,
+                """;
+
+        List<PartidoHistorico> partidos = new CsvPartidosParser().leer(new StringReader(csv));
+
+        assertEquals(1, partidos.size());
+        assertEquals(1995, partidos.get(0).fecha().getYear());
+        assertNull(partidos.get(0).cornersLocal()); // En 1995 no hay córners → null
+    }
+
+    @Test
     void rechazaCsvSinCabecerasObligatorias() {
         String csv = "Date,HomeTeam\n16/08/2025,Equipo A\n";
 
