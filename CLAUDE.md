@@ -29,9 +29,10 @@ explicar el código generado con IA. Por eso el código debe ser el que escribir
 
 ## Git
 
-- `main` debe estar siempre estable. Cada funcionalidad en una rama (`feat/...`, `fix/...`, `docs/...`, `chore/...`) y Pull Request.
+- `main` debe estar siempre estable. Cada funcionalidad en una rama (`feat/...`, `fix/...`, `docs/...`, `chore/...`)
+  que se fusiona en `main` con `git merge --no-ff` cuando sus pruebas pasan.
 - Commits convencionales en español: `feat:`, `fix:`, `test:`, `docs:`, `chore:`, `refactor:`.
-- Los commits los hace el alumno desde IntelliJ tras revisar cada cambio; Claude propone el mensaje.
+- Claude prepara los commits y el push a petición del alumno, sin línea de atribución; el alumno revisa cada cambio.
   El uso de IA se declara en la memoria del proyecto.
 - Nunca reescribir historial, forzar push ni subir credenciales, `.env` o los CSV de `data/`.
 - Pedir aprobación antes de fusionar, borrar ramas o cualquier acción destructiva.
