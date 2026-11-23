@@ -5,11 +5,12 @@ Cada incidencia indica cómo se detectó, la evidencia y su estado. Solo se regi
 | ID | Fecha | Descripción | Cómo se reprodujo | Estado |
 |---|---|---|---|---|
 | INC-01 | 13/11/2026 | Ejecutar `App` directamente (botón Run de IntelliJ sobre `main`) falla: *JavaFX runtime components are missing*. | `java -cp target/classes;<dependencias> es.fraydiegotadeo.laliga.App` | Resuelta: clase `Launcher` + configuración `.run/LaLiga App.run.xml`. Arranque verificado. |
-| INC-02 | 13/11/2026 | El parser rechaza el CSV real de 1995/96: *A header name is missing* (la cabecera termina en columnas vacías `,,,,`). | Lectura de `data/SP1_9596.csv` (football-data.co.uk) con `CsvPartidosParser`. | Pendiente |
-| INC-03 | 13/11/2026 | El diálogo de importación rechaza años anteriores a 2000 (`App.java`), aunque Football-Data ofrece SP1 desde 1993/94. | Revisión de código: condición `inicio < 2000`. Pendiente de probar en la interfaz con MySQL. | Pendiente |
+| INC-02 | 13/11/2026 | El parser rechaza el CSV real de 1995/96: *A header name is missing* (la cabecera termina en columnas vacías `,,,,`). | Lectura de `data/SP1_9596.csv` (football-data.co.uk) con `CsvPartidosParser`. Reproducida el 23/11/2026 con la prueba `aceptaColumnasSinNombre`. | Resuelta (23/11/2026): `setAllowMissingColumnNames(true)` + `DuplicateHeaderMode.ALLOW_EMPTY`. |
+| INC-03 | 13/11/2026 | El diálogo de importación rechaza años anteriores a 2000 (`App.java`), aunque Football-Data ofrece SP1 desde 1993/94. | Revisión de código: condición `inicio < 2000`. | Resuelta (23/11/2026): límite `PRIMER_ANIO_LALIGA = 1929`. |
 | INC-04 | 13/11/2026 | No hay servidor MySQL instalado (solo Workbench y la MariaDB 10.4 de XAMPP). | `Get-Service`, puerto 3306 sin escucha. | Resuelta: MySQL Community Server 26.10 como servicio `MySQL2610`. |
 | INC-05 | 13/11/2026 | Maven no está en el PATH de Windows (solo el integrado en IntelliJ). | `mvn -version` no encontrado. | Resuelta: Maven Wrapper (`mvnw.cmd`). `clean test` verificado. |
 | INC-06 | 13/11/2026 | *Access denied for user 'laliga_app'@'localhost'*: el usuario se creó copiando el ejemplo con la clave de marcador `TU_CLAVE`, distinta de la guardada en `LALIGA_DB_PASSWORD`. | Conexión con `ConexionMySql`. | Resuelta: `ALTER USER` con la clave real. Verificado: conecta con la variable de Windows y `TU_CLAVE` es rechazada. La aplicación abre sin errores y lee las 5 temporadas. Lección para el manual: avisar de sustituir el marcador. |
+| INC-08 | 23/11/2026 | Las fechas con año de dos cifras se leían en el siglo equivocado: `02/09/95` → 2095, porque el patrón `uu` de Java siempre supone 20xx. Habría guardado los partidos de los 90 con fecha del futuro. | Detectada por la prueba `aceptaColumnasSinNombre` (esperaba 1995, obtuvo 2095). | Resuelta (23/11/2026): `appendValueReduced(YEAR, 2, 2, 1950)` → 50-99 = 19xx, 00-49 = 20xx. |
 | INC-07 | 13/11/2026 | La clasificación calculada de 2024/25 coincide en puntos y goles con la oficial, pero ordena distinto 4 grupos de equipos empatados a puntos (Osasuna/Rayo, Valencia/Real Sociedad, Getafe/Alavés/Espanyol, Sevilla/Girona), porque no aplica el desempate oficial por enfrentamientos directos. | `ClasificacionService` sobre los 380 partidos importados de 2024/25. | Pendiente: implementar el desempate oficial. |
 
 ## Comprobaciones correctas (13/11/2026)
@@ -41,3 +42,14 @@ Realizada con el mismo código que usa la aplicación (`CsvPartidosParser` + `Pa
   (Barcelona 88, Real Madrid 84, Atlético 76…). Diferencias solo en el orden de empatados (INC-07).
 - Los nombres de Football-Data son abreviados (`Ath Madrid`, `Espanol`, `Sociedad`, `Sp Gijon`…): conviene
   un nombre para mostrar en la interfaz.
+
+## Importación completa 1993/94 – 2026/27 (23/11/2026)
+
+Los 34 CSV de football-data.co.uk importados con `CsvPartidosParser` + `PartidosRepository`:
+
+- **34 temporadas, 49 equipos, 12.823 partidos** (COUNT real en MySQL).
+- 1995/96 y 1996/97 tienen 462 partidos (liga de 22 equipos) y el resto 380, como en la realidad.
+- Las fechas de cada temporada son coherentes (1995/96: 02/09/1995 – 26/05/1996; 2019/20 termina el 19/07/2020 por la COVID).
+- 2026/27: 119 partidos jugados hasta el 08/11/2026.
+- 6 pruebas JUnit, 0 fallos.
+
