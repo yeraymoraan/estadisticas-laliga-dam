@@ -2,8 +2,6 @@ package es.fraydiegotadeo.laliga;
 
 import es.fraydiegotadeo.laliga.importer.ClienteFootballData;
 import es.fraydiegotadeo.laliga.importer.CsvCalendarioParser;
-import es.fraydiegotadeo.laliga.importer.CsvPartidosParser;
-import es.fraydiegotadeo.laliga.model.PartidoHistorico;
 import es.fraydiegotadeo.laliga.model.PartidoPendiente;
 import es.fraydiegotadeo.laliga.model.PartidoVista;
 import es.fraydiegotadeo.laliga.repository.PartidosRepository;
@@ -28,14 +26,11 @@ import javafx.scene.control.TabPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
-import javafx.scene.control.TextInputDialog;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
-import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -44,12 +39,11 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.function.Function;
 
 /**
- * Ventana principal (provisional): importar CSV, consultar partidos y clasificación por temporada
- * y predecir la próxima jornada.
+ * Ventana principal: consultar partidos y clasificación por temporada y predecir la próxima jornada.
+ * Los datos se descargan solos de Football-Data (ActualizacionService); el usuario no importa nada.
  *
  * Una aplicación JavaFX hereda de Application. JavaFX llama a start() al arrancar y nos da el
  * Stage (la ventana). Dentro del Stage se pone una Scene con los controles organizados en
@@ -59,12 +53,8 @@ import java.util.function.Function;
  */
 public final class App extends Application {
 
-    /** Primera temporada de LaLiga (1929). Football-Data tiene CSV desde 1993/94. */
-    private static final int PRIMER_ANIO_LALIGA = 1929;
-
     // Objetos de las otras capas que usa la interfaz
     private final PartidosRepository repositorio = new PartidosRepository();
-    private final CsvPartidosParser parser = new CsvPartidosParser();
     private final ClasificacionService servicioClasificacion = new ClasificacionService();
 
     // Controles de la ventana que se usan desde varios métodos
@@ -74,7 +64,7 @@ public final class App extends Application {
     private final TableView<ClasificacionService.Fila> tablaClasificacion = new TableView<>();
     private final TableView<Prediccion> tablaPrediccion = new TableView<>();
     private final Label infoModelo = new Label("Pulsa el botón para descargar el calendario y calcular la predicción.");
-    private final Label estado = new Label("Selecciona una temporada o importa un CSV real.");
+    private final Label estado = new Label("Cargando datos...");
 
     /** Botón que vuelve a buscar partidos nuevos (es un campo para poder desactivarlo mientras descarga). */
     private final Button botonActualizar = new Button("Actualizar datos");
@@ -105,7 +95,7 @@ public final class App extends Application {
         estado.setWrapText(true);
 
         // Composición de la ventana de arriba a abajo
-        VBox raiz = new VBox(13, titulo, crearBarraSuperior(ventana), crearPestanias(), estado);
+        VBox raiz = new VBox(13, titulo, crearBarraSuperior(), crearPestanias(), estado);
         raiz.setPadding(new Insets(17));
 
         ventana.setScene(new Scene(raiz, 1050, 620));
@@ -167,7 +157,7 @@ public final class App extends Application {
     }
 
     /** Barra con el selector de temporada, el filtro y los botones. */
-    private HBox crearBarraSuperior(Stage ventana) {
+    private HBox crearBarraSuperior() {
         selectorTemporada.setPromptText("Temporada");
         selectorTemporada.setOnAction(evento -> cargarPartidos());
 
@@ -177,11 +167,7 @@ public final class App extends Application {
 
         botonActualizar.setOnAction(evento -> actualizarDatos());
 
-        Button botonImportar = new Button("Importar CSV");
-        botonImportar.setOnAction(evento -> importar(ventana));
-
-        HBox barra = new HBox(10, new Label("Temporada:"), selectorTemporada, filtroEquipo,
-                botonActualizar, botonImportar);
+        HBox barra = new HBox(10, new Label("Temporada:"), selectorTemporada, filtroEquipo, botonActualizar);
         barra.setStyle("-fx-alignment: center-left;");
         // El filtro ocupa todo el espacio libre de la barra
         HBox.setHgrow(filtroEquipo, Priority.ALWAYS);
@@ -217,7 +203,7 @@ public final class App extends Application {
         agregarColumna(tablaPartidos, "Amarillas", PartidoVista::amarillas, 105);
         agregarColumna(tablaPartidos, "Rojas", PartidoVista::rojas, 105);
         agregarColumna(tablaPartidos, "Faltas", PartidoVista::faltas, 105);
-        tablaPartidos.setPlaceholder(new Label("Importa un CSV de LaLiga o selecciona una temporada."));
+        tablaPartidos.setPlaceholder(new Label("Cargando partidos..."));
     }
 
     private void configurarTablaClasificacion() {
@@ -290,7 +276,7 @@ public final class App extends Application {
 
             List<Integer> temporadas = repositorio.listarTemporadas();
             if (temporadas.isEmpty()) {
-                mostrarError("Importa antes las temporadas desde CSV.");
+                mostrarError("Todavía no hay partidos guardados. Espera a que termine la descarga.");
                 return;
             }
             // listarTemporadas devuelve primero la más reciente
@@ -359,7 +345,7 @@ public final class App extends Application {
             if (anios.isEmpty()) {
                 partidosCargados = List.of();
                 filtrar();
-                estado.setText("Base de datos vacía. Descarga un CSV de Primera División (SP1) e impórtalo.");
+                estado.setText("Todavía no hay partidos guardados: se están descargando de Football-Data.");
                 return;
             }
 
@@ -385,7 +371,7 @@ public final class App extends Application {
             partidosCargados = repositorio.listarPartidos(temporada);
             filtrar();
             estado.setText("Temporada " + temporada + "/" + String.format("%02d", (temporada + 1) % 100)
-                    + " · " + partidosCargados.size() + " partidos importados");
+                    + " · " + partidosCargados.size() + " partidos");
         } catch (SQLException ex) {
             mostrarError("Error al consultar MySQL: " + ex.getMessage());
         }
@@ -407,61 +393,6 @@ public final class App extends Application {
         // La clasificación usa siempre todos los partidos de la temporada, no solo los filtrados
         tablaClasificacion.setItems(FXCollections.observableArrayList(
                 servicioClasificacion.calcular(partidosCargados)));
-    }
-
-    /** Pide un CSV y el año de la temporada, lo lee y lo guarda en MySQL. */
-    private void importar(Stage ventana) {
-        FileChooser dialogoArchivo = new FileChooser();
-        dialogoArchivo.setTitle("Selecciona el archivo CSV de Primera División española");
-        dialogoArchivo.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV (*.csv)", "*.csv"));
-        File archivo = dialogoArchivo.showOpenDialog(ventana);
-        if (archivo == null) {
-            return; // El usuario ha cancelado
-        }
-
-        Integer inicio = pedirAnioTemporada();
-        if (inicio == null) {
-            return;
-        }
-
-        try {
-            List<PartidoHistorico> partidos = parser.leer(archivo.toPath());
-            int cantidad = repositorio.importar(inicio, partidos);
-            cargarTemporadas();
-            selectorTemporada.setValue(inicio);
-            cargarPartidos();
-            estado.setText("CSV importado: " + cantidad + " partidos leídos (reimportar actualiza, no duplica).");
-        } catch (Exception ex) {
-            mostrarError("Error al importar CSV: " + ex.getMessage());
-        }
-    }
-
-    /**
-     * Pregunta el año de inicio de la temporada del CSV.
-     *
-     * @return el año, o null si el usuario cancela o escribe un valor no válido
-     */
-    private Integer pedirAnioTemporada() {
-        TextInputDialog dialogo = new TextInputDialog("2025");
-        dialogo.setTitle("Importar temporada");
-        dialogo.setHeaderText("Indica el primer año de la temporada del CSV");
-        dialogo.setContentText("Ejemplo: 2025 para 2025/26");
-
-        Optional<String> respuesta = dialogo.showAndWait();
-        if (respuesta.isEmpty()) {
-            return null;
-        }
-        try {
-            int anio = Integer.parseInt(respuesta.get().trim());
-            // LaLiga empezó en 1929, así que no tiene sentido un año anterior ni uno del futuro
-            if (anio < PRIMER_ANIO_LALIGA || anio > LocalDate.now().getYear()) {
-                throw new NumberFormatException("Año fuera de rango");
-            }
-            return anio;
-        } catch (NumberFormatException ex) {
-            mostrarError("Año incorrecto: escribe el año inicial, por ejemplo 2025.");
-            return null;
-        }
     }
 
     /** Muestra el error en la barra de estado y en una ventana de aviso. */
