@@ -14,12 +14,25 @@ Aplicación de escritorio en **Java 21 + JavaFX + MySQL** para consultar varias 
 
 ## Primeros pasos (Windows)
 
-1. Instalar **JDK 21**, **MySQL Community Server** (probado con 26.10) e **IntelliJ IDEA** (no hace falta instalar Maven: el proyecto incluye Maven Wrapper).
-2. Ejecutar el script `sql/schema.sql` en MySQL.
-3. Configurar variables de entorno `LALIGA_DB_URL`, `LALIGA_DB_USER`, `LALIGA_DB_PASSWORD` (ver `.env.example`; **no** subir contraseñas).
-4. En IntelliJ: configuración **LaLiga App** (botón Run/Debug) o **Tests (mvn clean test)**. Desde terminal: `.\mvnw.cmd clean test` y `.\mvnw.cmd javafx:run`.
-5. Abrir la aplicación. **No hay que importar nada**: al arrancar descarga de football-data.co.uk las temporadas que falten (la primera vez, todo el histórico desde 1993/94) y los partidos nuevos de la temporada en curso. El botón **Actualizar datos** vuelve a buscarlos. Sin internet funciona con lo ya guardado.
-6. La aplicación se abre en **Próxima jornada**, con una tarjeta de predicción por partido. En el menú lateral están también **Simulación** (cómo puede terminar la temporada), **Clasificación** (con las zonas europeas y de descenso) y **Partidos** (organizados por jornadas, con buscador por equipo). El selector de arriba cambia de temporada.
+1. Instalar **JDK 21** y **MySQL Community Server** (probado con 26.10). No hace falta instalar Maven: el proyecto
+   incluye Maven Wrapper (`mvnw.cmd`). Se puede abrir con IntelliJ IDEA, Eclipse o NetBeans como proyecto Maven.
+2. Crear la base de datos ejecutando `sql/schema.sql` en MySQL (por ejemplo con MySQL Workbench y el usuario `root`).
+3. Crear un usuario solo para la aplicación (cambiar `TU_CLAVE` por una contraseña inventada):
+   ```sql
+   CREATE USER 'laliga_app'@'localhost' IDENTIFIED BY 'TU_CLAVE';
+   GRANT SELECT, INSERT, UPDATE, DELETE ON laliga_dam.* TO 'laliga_app'@'localhost';
+   ```
+4. Configurar la conexión de una de estas dos formas (**no** subir contraseñas a GitHub):
+   - Copiar `laliga.properties.example` como `laliga.properties` en la carpeta del proyecto y poner la contraseña del paso 3.
+   - O crear las variables de entorno `LALIGA_DB_URL`, `LALIGA_DB_USER` y `LALIGA_DB_PASSWORD` (ver `.env.example`).
+5. Ejecutar: en IntelliJ, configuración **LaLiga App**; en cualquier IDE, la clase `es.fraydiegotadeo.laliga.Launcher`;
+   desde terminal, `.\mvnw.cmd javafx:run`. Pruebas: `.\mvnw.cmd clean test`.
+6. **No hay que importar nada**: al arrancar, la aplicación descarga de football-data.co.uk las temporadas que falten
+   (la primera vez, todo el histórico desde 1993/94, unos segundos) y los partidos nuevos de la temporada en curso.
+   Hace falta internet la primera vez; después funciona también sin conexión con lo ya guardado.
+7. La aplicación se abre en **Próxima jornada**, con una tarjeta de predicción por partido. En el menú lateral están
+   también **Simulación** (cómo puede terminar la temporada), **Clasificación** (con las zonas europeas y de descenso)
+   y **Partidos** (organizados por jornadas, con buscador por equipo). El selector de arriba cambia de temporada.
 
 ## Estado actual
 

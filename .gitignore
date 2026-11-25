@@ -25,3 +25,6 @@ data/
 # OS
 .DS_Store
 Thumbs.db
+
+# Configuración local de la conexión (puede tener la contraseña de MySQL)
+laliga.properties
