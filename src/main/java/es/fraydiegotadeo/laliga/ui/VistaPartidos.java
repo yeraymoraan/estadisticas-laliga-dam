@@ -1,5 +1,6 @@
 package es.fraydiegotadeo.laliga.ui;
 
+import es.fraydiegotadeo.laliga.model.NombresEquipos;
 import es.fraydiegotadeo.laliga.model.PartidoVista;
 import javafx.collections.FXCollections;
 import javafx.scene.Node;
@@ -23,23 +24,27 @@ public final class VistaPartidos {
     private List<PartidoVista> partidos = new ArrayList<>();
 
     public VistaPartidos() {
-        Tablas.agregarColumna(tabla, "Fecha", partido -> partido.fecha().toString(), 100);
-        Tablas.agregarColumna(tabla, "Local", PartidoVista::local, 150);
-        Tablas.agregarColumna(tabla, "Visitante", PartidoVista::visitante, 150);
-        Tablas.agregarColumna(tabla, "Resultado", PartidoVista::resultado, 100);
-        Tablas.agregarColumna(tabla, "Remates", PartidoVista::remates, 105);
-        Tablas.agregarColumna(tabla, "A puerta", PartidoVista::rematesPuerta, 105);
-        Tablas.agregarColumna(tabla, "Córners", PartidoVista::corners, 105);
-        Tablas.agregarColumna(tabla, "Amarillas", PartidoVista::amarillas, 105);
-        Tablas.agregarColumna(tabla, "Rojas", PartidoVista::rojas, 105);
-        Tablas.agregarColumna(tabla, "Faltas", PartidoVista::faltas, 105);
+        Tablas.agregarColumna(tabla, "FECHA", partido -> Tablas.fecha(partido.fecha()), 100);
+        Tablas.agregarColumna(tabla, "LOCAL", partido -> NombresEquipos.completo(partido.local()), 175);
+        Tablas.agregarColumnaCentrada(tabla, "RESULTADO", PartidoVista::resultado, 95)
+                .getStyleClass().add("celda-negrita");
+        Tablas.agregarColumna(tabla, "VISITANTE", partido -> NombresEquipos.completo(partido.visitante()), 175);
+        Tablas.agregarColumnaCentrada(tabla, "REMATES", PartidoVista::remates, 90);
+        Tablas.agregarColumnaCentrada(tabla, "A PUERTA", PartidoVista::rematesPuerta, 90);
+        Tablas.agregarColumnaCentrada(tabla, "CÓRNERS", PartidoVista::corners, 90);
+        Tablas.agregarColumnaCentrada(tabla, "AMARILLAS", PartidoVista::amarillas, 90);
+        Tablas.agregarColumnaCentrada(tabla, "ROJAS", PartidoVista::rojas, 80);
+        Tablas.agregarColumnaCentrada(tabla, "FALTAS", PartidoVista::faltas, 85);
         tabla.setPlaceholder(new Label("Cargando partidos..."));
+        Tablas.ajustarAlAncho(tabla);
 
-        buscador.setPromptText("Filtrar por equipo");
+        buscador.setPromptText("Buscar equipo...");
+        buscador.getStyleClass().add("buscador");
+        buscador.setMaxWidth(320);
         // Listener: cada vez que cambia el texto del buscador se vuelve a filtrar la tabla
         buscador.textProperty().addListener((propiedad, textoAnterior, textoNuevo) -> filtrar());
 
-        raiz = new VBox(10, buscador, tabla);
+        raiz = new VBox(12, buscador, tabla);
         VBox.setVgrow(tabla, Priority.ALWAYS);
     }
 
@@ -60,8 +65,10 @@ public final class VistaPartidos {
 
         List<PartidoVista> visibles = new ArrayList<>();
         for (PartidoVista partido : partidos) {
-            if (partido.local().toLowerCase().contains(filtro)
-                    || partido.visitante().toLowerCase().contains(filtro)) {
+            // Se busca en el nombre completo ("Atlético") y en el de Football-Data ("Ath Madrid")
+            String local = partido.local() + " " + NombresEquipos.completo(partido.local());
+            String visitante = partido.visitante() + " " + NombresEquipos.completo(partido.visitante());
+            if (local.toLowerCase().contains(filtro) || visitante.toLowerCase().contains(filtro)) {
                 visibles.add(partido);
             }
         }

@@ -21,6 +21,36 @@ public final class ClasificacionService {
     private static final int PUNTOS_VICTORIA = 3;
     private static final int PUNTOS_EMPATE = 1;
 
+    /**
+     * Zona de la clasificación según el puesto. Es un enum: un tipo con un número fijo de valores.
+     * Reparto habitual de LaLiga: 1-4 Champions, 5 Europa League, 6 Conference League y los 3
+     * últimos descienden. Puede variar un poco cada año según quién gane la Copa del Rey.
+     */
+    public enum Zona {
+        CHAMPIONS, EUROPA_LEAGUE, CONFERENCE_LEAGUE, NINGUNA, DESCENSO
+    }
+
+    /**
+     * @param posicion puesto en la clasificación, empezando en 1
+     * @param equipos  número de equipos de la liga (20 ahora; 22 en 1995/96 y 1996/97)
+     * @return la zona de ese puesto
+     */
+    public static Zona zona(int posicion, int equipos) {
+        if (posicion <= 4) {
+            return Zona.CHAMPIONS;
+        }
+        if (posicion == 5) {
+            return Zona.EUROPA_LEAGUE;
+        }
+        if (posicion == 6) {
+            return Zona.CONFERENCE_LEAGUE;
+        }
+        if (posicion > equipos - 3) {
+            return Zona.DESCENSO;
+        }
+        return Zona.NINGUNA;
+    }
+
     /** Una fila de la tabla de clasificación. */
     public record Fila(String equipo, int jugados, int victorias, int empates,
                        int derrotas, int golesFavor, int golesContra, int puntos) {

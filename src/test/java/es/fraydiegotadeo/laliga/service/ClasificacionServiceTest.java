@@ -27,6 +27,18 @@ class ClasificacionServiceTest {
         assertEquals(1, tabla.get(1).puntos());
     }
 
+    @Test
+    void zonasDeLaClasificacion() {
+        assertEquals(ClasificacionService.Zona.CHAMPIONS, ClasificacionService.zona(4, 20));
+        assertEquals(ClasificacionService.Zona.EUROPA_LEAGUE, ClasificacionService.zona(5, 20));
+        assertEquals(ClasificacionService.Zona.CONFERENCE_LEAGUE, ClasificacionService.zona(6, 20));
+        assertEquals(ClasificacionService.Zona.NINGUNA, ClasificacionService.zona(17, 20));
+        assertEquals(ClasificacionService.Zona.DESCENSO, ClasificacionService.zona(18, 20));
+        // Con 22 equipos (1995/96) el 18 se salva y desciende del 20 al 22
+        assertEquals(ClasificacionService.Zona.NINGUNA, ClasificacionService.zona(18, 22));
+        assertEquals(ClasificacionService.Zona.DESCENSO, ClasificacionService.zona(20, 22));
+    }
+
     /** Crea un partido de prueba solo con el resultado (el resto de estadísticas a null). */
     private static PartidoVista partido(LocalDate fecha, String local, String visitante,
                                         int golesLocal, int golesVisitante) {

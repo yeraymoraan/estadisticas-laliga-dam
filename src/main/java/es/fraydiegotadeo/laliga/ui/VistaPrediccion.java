@@ -36,6 +36,7 @@ public final class VistaPrediccion {
         Tablas.agregarColumna(tabla, "Remates", Prediccion::remates, 85);
         Tablas.agregarColumna(tabla, "Faltas", Prediccion::faltas, 85);
         tabla.setPlaceholder(new Label("Sin predicciones todavía."));
+        botonPredecir.getStyleClass().add("boton-principal");
 
         Label aviso = new Label("Son estimaciones del modelo de Poisson con los partidos de esta temporada "
                 + "y la anterior, no resultados seguros. Los valores con decimales son medias esperadas.");

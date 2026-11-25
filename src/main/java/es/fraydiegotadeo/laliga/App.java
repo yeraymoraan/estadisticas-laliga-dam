@@ -11,19 +11,23 @@ import es.fraydiegotadeo.laliga.ui.VistaPartidos;
 import es.fraydiegotadeo.laliga.ui.VistaPrediccion;
 import javafx.application.Application;
 import javafx.concurrent.Task;
-import javafx.geometry.Insets;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.Tab;
-import javafx.scene.control.TabPane;
+import javafx.scene.control.ToggleButton;
+import javafx.scene.control.ToggleGroup;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import javafx.util.StringConverter;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -53,11 +57,20 @@ public final class App extends Application {
     private final VistaClasificacion vistaClasificacion = new VistaClasificacion();
     private final VistaPrediccion vistaPrediccion = new VistaPrediccion();
 
-    // Controles comunes a varias pantallas
-    private final ComboBox<Integer> selectorTemporada = new ComboBox<>();
+    // Menú lateral
+    private final ToggleButton botonJornada = new ToggleButton("Próxima jornada");
+    private final ToggleButton botonClasificacion = new ToggleButton("Clasificación");
+    private final ToggleButton botonPartidos = new ToggleButton("Partidos");
     /** Es un campo para poder desactivarlo mientras descarga. */
     private final Button botonActualizar = new Button("Actualizar datos");
     private final Label estado = new Label("Cargando datos...");
+
+    // Cabecera y zona donde se pone la pantalla activa
+    private final Label tituloPantalla = new Label();
+    private final Label subtituloPantalla = new Label();
+    private final ComboBox<Integer> selectorTemporada = new ComboBox<>();
+    /** StackPane: contenedor que muestra sus hijos uno encima de otro; aquí solo tiene la pantalla activa. */
+    private final StackPane zonaPantalla = new StackPane();
 
     public static void main(String[] args) {
         launch(args);
@@ -66,46 +79,132 @@ public final class App extends Application {
     @Override
     public void start(Stage ventana) {
         ventana.setTitle("LaLiga Stats · Proyecto DAM");
-
-        Label titulo = new Label("Histórico de Primera División española");
-        titulo.setStyle("-fx-font-size: 22px; -fx-font-weight: bold;");
-        estado.setWrapText(true);
         vistaPrediccion.getBotonPredecir().setOnAction(evento -> predecirProximaJornada());
 
-        // Composición de la ventana de arriba a abajo
-        VBox raiz = new VBox(13, titulo, crearBarraSuperior(), crearPestanias(), estado);
-        raiz.setPadding(new Insets(17));
+        // BorderPane divide la ventana en zonas: el menú a la izquierda (left) y la pantalla en el centro
+        BorderPane raiz = new BorderPane();
+        raiz.setLeft(crearMenu());
+        raiz.setCenter(crearContenido());
 
-        ventana.setScene(new Scene(raiz, 1050, 620));
+        Scene escena = new Scene(raiz, 1280, 800);
+        // La hoja de estilos está en src/main/resources; getResource la busca dentro del programa
+        escena.getStylesheets().add(getClass().getResource("/es/fraydiegotadeo/laliga/ui/estilos.css").toExternalForm());
+        ventana.setScene(escena);
+        ventana.setMinWidth(1000);
+        ventana.setMinHeight(650);
         ventana.show();
+
+        // Al abrir se enseña la próxima jornada, que es la pantalla principal
+        botonJornada.setSelected(true);
+        mostrarJornada();
 
         // Primero se enseña lo que ya hay en MySQL y después se buscan datos nuevos en internet
         cargarTemporadas();
         actualizarDatos();
     }
 
-    /** Barra con el selector de temporada y el botón de actualizar. */
-    private HBox crearBarraSuperior() {
-        selectorTemporada.setPromptText("Temporada");
-        selectorTemporada.setOnAction(evento -> cargarPartidos());
-        botonActualizar.setOnAction(evento -> actualizarDatos());
+    /** Menú lateral oscuro: logo, botones de las pantallas y, abajo, el estado de los datos. */
+    private VBox crearMenu() {
+        Label logo = new Label("LaLiga");
+        logo.getStyleClass().add("logo");
+        Label logoAcento = new Label("Stats");
+        logoAcento.getStyleClass().add("logo-acento");
+        HBox titulo = new HBox(5, logo, logoAcento);
+        Label subtitulo = new Label("Estadísticas y predicciones");
+        subtitulo.getStyleClass().add("logo-sub");
 
-        HBox barra = new HBox(10, new Label("Temporada:"), selectorTemporada, botonActualizar);
-        barra.setStyle("-fx-alignment: center-left;");
-        return barra;
+        // ToggleGroup: de los botones del grupo solo puede haber uno pulsado a la vez
+        ToggleGroup grupo = new ToggleGroup();
+        prepararBotonMenu(botonJornada, "nav-jornada", grupo);
+        prepararBotonMenu(botonClasificacion, "nav-clasificacion", grupo);
+        prepararBotonMenu(botonPartidos, "nav-partidos", grupo);
+        botonJornada.setOnAction(evento -> mostrarJornada());
+        botonClasificacion.setOnAction(evento -> mostrarClasificacion());
+        botonPartidos.setOnAction(evento -> mostrarPartidos());
+        // Si se pulsa otra vez el botón activo se desmarcaría; así se evita que no quede ninguno
+        grupo.selectedToggleProperty().addListener((propiedad, anterior, nuevo) -> {
+            if (nuevo == null) {
+                anterior.setSelected(true);
+            }
+        });
+
+        // Region vacía que crece y empuja el botón de actualizar hasta abajo del menú
+        Region hueco = new Region();
+        VBox.setVgrow(hueco, Priority.ALWAYS);
+
+        botonActualizar.getStyleClass().add("boton-menu");
+        botonActualizar.setOnAction(evento -> actualizarDatos());
+        estado.getStyleClass().add("estado-menu");
+        estado.setWrapText(true);
+
+        VBox menu = new VBox(titulo, subtitulo, botonJornada, botonClasificacion, botonPartidos,
+                hueco, botonActualizar, estado);
+        menu.getStyleClass().add("menu");
+        return menu;
     }
 
-    private TabPane crearPestanias() {
-        Tab pestaniaPartidos = new Tab("Partidos", vistaPartidos.getRaiz());
-        Tab pestaniaClasificacion = new Tab("Clasificación", vistaClasificacion.getRaiz());
-        Tab pestaniaPrediccion = new Tab("Próxima jornada", vistaPrediccion.getRaiz());
-        pestaniaPartidos.setClosable(false);
-        pestaniaClasificacion.setClosable(false);
-        pestaniaPrediccion.setClosable(false);
+    /** Da a un botón del menú su id (para el CSS), su estilo y su grupo. */
+    private static void prepararBotonMenu(ToggleButton boton, String id, ToggleGroup grupo) {
+        boton.setId(id);
+        boton.getStyleClass().add("nav-boton");
+        boton.setToggleGroup(grupo);
+    }
 
-        TabPane pestanias = new TabPane(pestaniaPartidos, pestaniaClasificacion, pestaniaPrediccion);
-        VBox.setVgrow(pestanias, Priority.ALWAYS);
-        return pestanias;
+    /** Zona central: cabecera (título, subtítulo y selector de temporada) y la pantalla activa. */
+    private VBox crearContenido() {
+        tituloPantalla.getStyleClass().add("titulo-pantalla");
+        subtituloPantalla.getStyleClass().add("subtitulo-pantalla");
+        VBox textos = new VBox(2, tituloPantalla, subtituloPantalla);
+
+        selectorTemporada.setPromptText("Temporada");
+        // El selector guarda el año de inicio (2026) pero enseña "Temporada 2026/27"
+        selectorTemporada.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(Integer inicio) {
+                if (inicio == null) {
+                    return "";
+                }
+                return "Temporada " + inicio + "/" + String.format("%02d", (inicio + 1) % 100);
+            }
+
+            @Override
+            public Integer fromString(String texto) {
+                return null; // No se usa: el selector no deja escribir
+            }
+        });
+        selectorTemporada.setOnAction(evento -> cargarPartidos());
+
+        Region hueco = new Region();
+        HBox.setHgrow(hueco, Priority.ALWAYS);
+        HBox cabecera = new HBox(textos, hueco, selectorTemporada);
+        cabecera.setStyle("-fx-alignment: center-left;");
+
+        VBox contenido = new VBox(cabecera, zonaPantalla);
+        contenido.getStyleClass().add("contenido");
+        VBox.setVgrow(zonaPantalla, Priority.ALWAYS);
+        return contenido;
+    }
+
+    /** Cambia la pantalla del centro. El selector de temporada solo se ve donde sirve. */
+    private void cambiarPantalla(String titulo, String subtitulo, Node pantalla, boolean conTemporada) {
+        tituloPantalla.setText(titulo);
+        subtituloPantalla.setText(subtitulo);
+        selectorTemporada.setVisible(conTemporada);
+        zonaPantalla.getChildren().setAll(pantalla);
+    }
+
+    private void mostrarJornada() {
+        cambiarPantalla("Próxima jornada", "Predicción de cada partido con el modelo de Poisson",
+                vistaPrediccion.getRaiz(), false);
+    }
+
+    private void mostrarClasificacion() {
+        cambiarPantalla("Clasificación", "Tabla calculada con los resultados guardados",
+                vistaClasificacion.getRaiz(), true);
+    }
+
+    private void mostrarPartidos() {
+        cambiarPantalla("Partidos", "Resultados y estadísticas de cada partido", vistaPartidos.getRaiz(), true);
     }
 
     /**
@@ -142,18 +241,17 @@ public final class App extends Application {
         hilo.start();
     }
 
-    /** Texto de la barra de estado después de actualizar. */
+    /** Texto corto del estado de los datos, que se ve abajo del menú. */
     private static String textoResumen(ActualizacionService.Resumen resumen) {
         String texto;
         if (resumen.ultimoPartido() == null) {
-            texto = "Datos actualizados (" + resumen.temporadasActualizadas() + " temporadas).";
+            texto = "Datos actualizados.";
         } else {
-            texto = "Datos actualizados: último partido guardado el "
-                    + resumen.ultimoPartido().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
-                    + " (Football-Data publica los resultados con unos días de retraso).";
+            texto = "Datos al día · último partido "
+                    + resumen.ultimoPartido().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
         }
         for (String aviso : resumen.avisos()) {
-            texto += " " + aviso;
+            texto += "\n" + aviso;
         }
         return texto;
     }
@@ -204,8 +302,6 @@ public final class App extends Application {
             List<PartidoVista> partidos = repositorio.listarPartidos(temporada);
             vistaPartidos.mostrar(partidos);
             vistaClasificacion.mostrar(servicioClasificacion.calcular(partidos));
-            estado.setText("Temporada " + temporada + "/" + String.format("%02d", (temporada + 1) % 100)
-                    + " · " + partidos.size() + " partidos");
         } catch (SQLException ex) {
             mostrarError("Error al consultar MySQL: " + ex.getMessage());
         }
