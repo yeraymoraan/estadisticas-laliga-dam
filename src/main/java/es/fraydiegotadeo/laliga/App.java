@@ -1,11 +1,13 @@
 package es.fraydiegotadeo.laliga;
 
+import es.fraydiegotadeo.laliga.importer.ClienteFootballData;
 import es.fraydiegotadeo.laliga.importer.CsvCalendarioParser;
 import es.fraydiegotadeo.laliga.importer.CsvPartidosParser;
 import es.fraydiegotadeo.laliga.model.PartidoHistorico;
 import es.fraydiegotadeo.laliga.model.PartidoPendiente;
 import es.fraydiegotadeo.laliga.model.PartidoVista;
 import es.fraydiegotadeo.laliga.repository.PartidosRepository;
+import es.fraydiegotadeo.laliga.service.ActualizacionService;
 import es.fraydiegotadeo.laliga.service.BacktestingService;
 import es.fraydiegotadeo.laliga.service.ClasificacionService;
 import es.fraydiegotadeo.laliga.service.ModeloPoisson;
@@ -13,6 +15,7 @@ import es.fraydiegotadeo.laliga.service.Prediccion;
 import javafx.application.Application;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.collections.FXCollections;
+import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
@@ -38,6 +41,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -72,8 +76,13 @@ public final class App extends Application {
     private final Label infoModelo = new Label("Pulsa el botón para descargar el calendario y calcular la predicción.");
     private final Label estado = new Label("Selecciona una temporada o importa un CSV real.");
 
+    /** Botón que vuelve a buscar partidos nuevos (es un campo para poder desactivarlo mientras descarga). */
+    private final Button botonActualizar = new Button("Actualizar datos");
+
     /** Lector del calendario de la próxima jornada y archivo donde se guarda al descargarlo. */
     private final CsvCalendarioParser calendario = new CsvCalendarioParser();
+    private final ClienteFootballData descargas = new ClienteFootballData();
+    private final ActualizacionService servicioActualizacion = new ActualizacionService(repositorio, descargas);
     private static final Path ARCHIVO_CALENDARIO = Path.of("data", "fixtures.csv");
 
     /** Partidos de la temporada seleccionada, sin filtrar. */
@@ -102,7 +111,59 @@ public final class App extends Application {
         ventana.setScene(new Scene(raiz, 1050, 620));
         ventana.show();
 
+        // Primero se enseña lo que ya hay en MySQL y después se buscan datos nuevos en internet
         cargarTemporadas();
+        actualizarDatos();
+    }
+
+    /**
+     * Descarga de Football-Data los partidos nuevos y los guarda en MySQL, sin que el usuario importe nada.
+     *
+     * Se hace en otro hilo con un Task de JavaFX. Si se hiciera en el hilo de la ventana, esta se
+     * quedaría congelada mientras descarga (la primera vez son 34 temporadas). JavaFX obliga a que
+     * los controles solo se toquen desde su propio hilo, por eso la tabla se recarga en
+     * setOnSucceeded, que JavaFX ejecuta en el hilo de la ventana cuando el Task termina.
+     */
+    private void actualizarDatos() {
+        botonActualizar.setDisable(true);
+        estado.setText("Buscando partidos nuevos en Football-Data...");
+
+        Task<ActualizacionService.Resumen> tarea = new Task<>() {
+            @Override
+            protected ActualizacionService.Resumen call() throws Exception {
+                return servicioActualizacion.actualizar(LocalDate.now());
+            }
+        };
+        tarea.setOnSucceeded(evento -> {
+            botonActualizar.setDisable(false);
+            cargarTemporadas();
+            estado.setText(textoResumen(tarea.getValue()));
+        });
+        tarea.setOnFailed(evento -> {
+            botonActualizar.setDisable(false);
+            mostrarError("No se han podido actualizar los datos: " + tarea.getException().getMessage());
+        });
+
+        // setDaemon(true): si se cierra la ventana, este hilo no impide que el programa termine
+        Thread hilo = new Thread(tarea);
+        hilo.setDaemon(true);
+        hilo.start();
+    }
+
+    /** Texto de la barra de estado después de actualizar. */
+    private static String textoResumen(ActualizacionService.Resumen resumen) {
+        String texto;
+        if (resumen.ultimoPartido() == null) {
+            texto = "Datos actualizados (" + resumen.temporadasActualizadas() + " temporadas).";
+        } else {
+            texto = "Datos actualizados: último partido guardado el "
+                    + resumen.ultimoPartido().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                    + " (Football-Data publica los resultados con unos días de retraso).";
+        }
+        for (String aviso : resumen.avisos()) {
+            texto += " " + aviso;
+        }
+        return texto;
     }
 
     /** Barra con el selector de temporada, el filtro y los botones. */
@@ -114,8 +175,7 @@ public final class App extends Application {
         // Listener: cada vez que cambia el texto del filtro se vuelve a filtrar la tabla
         filtroEquipo.textProperty().addListener((propiedad, textoAnterior, textoNuevo) -> filtrar());
 
-        Button botonActualizar = new Button("Actualizar");
-        botonActualizar.setOnAction(evento -> cargarTemporadas());
+        botonActualizar.setOnAction(evento -> actualizarDatos());
 
         Button botonImportar = new Button("Importar CSV");
         botonImportar.setOnAction(evento -> importar(ventana));
@@ -214,7 +274,7 @@ public final class App extends Application {
         try {
             String origen = "descargado de Football-Data";
             try {
-                calendario.descargar(ARCHIVO_CALENDARIO);
+                descargas.descargar(ClienteFootballData.URL_CALENDARIO, ARCHIVO_CALENDARIO);
             } catch (IOException ex) {
                 // Sin internet se usa el último calendario descargado, si existe
                 if (!Files.exists(ARCHIVO_CALENDARIO)) {
