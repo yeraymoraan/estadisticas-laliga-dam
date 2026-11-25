@@ -1,5 +1,6 @@
 package es.fraydiegotadeo.laliga;
 
+import es.fraydiegotadeo.laliga.importer.ClienteFootballData;
 import es.fraydiegotadeo.laliga.importer.CsvCalendarioParser;
 import es.fraydiegotadeo.laliga.importer.CsvPartidosParser;
 import es.fraydiegotadeo.laliga.model.PartidoHistorico;
@@ -74,6 +75,7 @@ public final class App extends Application {
 
     /** Lector del calendario de la próxima jornada y archivo donde se guarda al descargarlo. */
     private final CsvCalendarioParser calendario = new CsvCalendarioParser();
+    private final ClienteFootballData descargas = new ClienteFootballData();
     private static final Path ARCHIVO_CALENDARIO = Path.of("data", "fixtures.csv");
 
     /** Partidos de la temporada seleccionada, sin filtrar. */
@@ -214,7 +216,7 @@ public final class App extends Application {
         try {
             String origen = "descargado de Football-Data";
             try {
-                calendario.descargar(ARCHIVO_CALENDARIO);
+                descargas.descargar(ClienteFootballData.URL_CALENDARIO, ARCHIVO_CALENDARIO);
             } catch (IOException ex) {
                 // Sin internet se usa el último calendario descargado, si existe
                 if (!Files.exists(ARCHIVO_CALENDARIO)) {
