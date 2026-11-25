@@ -1,8 +1,13 @@
 package es.fraydiegotadeo.laliga.ui;
 
+import es.fraydiegotadeo.laliga.service.ClasificacionService;
 import javafx.beans.property.ReadOnlyStringWrapper;
+import javafx.scene.control.Label;
+import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -54,5 +59,76 @@ public final class Tablas {
     /** Fecha en formato español: 22/11/2026. */
     public static String fecha(LocalDate dia) {
         return dia.format(FORMATO_FECHA);
+    }
+
+    /**
+     * Columna "#" con el puesto dentro de un cuadradito del color de su zona (Champions, Europa
+     * League, Conference o descenso). La usan la clasificación y la simulación.
+     *
+     * Para dibujar algo distinto de un texto hay que crear la celda a mano con setCellFactory.
+     * JavaFX reutiliza las celdas al hacer scroll, por eso en updateItem siempre se vuelve a
+     * poner (o quitar) el contenido según la fila que toque. El puesto sale del número de fila,
+     * así que la tabla no se debe poder reordenar.
+     */
+    public static <T> TableColumn<T, String> crearColumnaPosicion() {
+        TableColumn<T, String> columna = new TableColumn<>("#");
+        columna.setPrefWidth(52);
+        columna.setCellFactory(col -> new TableCell<>() {
+            @Override
+            protected void updateItem(String valor, boolean vacia) {
+                super.updateItem(valor, vacia);
+                if (vacia || getTableRow() == null || getTableRow().getItem() == null) {
+                    setGraphic(null);
+                    return;
+                }
+                int posicion = getIndex() + 1;
+                int equipos = getTableView().getItems().size();
+                Label numero = new Label(String.valueOf(posicion));
+                numero.getStyleClass().add("posicion");
+                String estilo = claseZona(ClasificacionService.zona(posicion, equipos));
+                if (estilo != null) {
+                    numero.getStyleClass().add(estilo);
+                }
+                setGraphic(numero);
+            }
+        });
+        return columna;
+    }
+
+    /** Clase CSS de cada zona (null si no tiene color). */
+    private static String claseZona(ClasificacionService.Zona zona) {
+        switch (zona) {
+            case CHAMPIONS:
+                return "zona-champions";
+            case EUROPA_LEAGUE:
+                return "zona-europa";
+            case CONFERENCE_LEAGUE:
+                return "zona-conference";
+            case DESCENSO:
+                return "zona-descenso";
+            default:
+                return null;
+        }
+    }
+
+    /** Leyenda con el significado de cada color. */
+    public static HBox crearLeyendaZonas() {
+        HBox leyenda = new HBox(
+                elementoLeyenda("zona-champions", "Champions League"),
+                elementoLeyenda("zona-europa", "Europa League"),
+                elementoLeyenda("zona-conference", "Conference League"),
+                elementoLeyenda("zona-descenso", "Descenso"));
+        leyenda.getStyleClass().add("leyenda");
+        return leyenda;
+    }
+
+    private static HBox elementoLeyenda(String claseColor, String texto) {
+        Region punto = new Region();
+        punto.getStyleClass().addAll("leyenda-punto", claseColor);
+        Label etiqueta = new Label(texto);
+        etiqueta.getStyleClass().add("texto-suave");
+        HBox elemento = new HBox(6, punto, etiqueta);
+        elemento.setStyle("-fx-alignment: center-left;");
+        return elemento;
     }
 }

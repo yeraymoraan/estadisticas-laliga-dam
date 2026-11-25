@@ -6,9 +6,11 @@ import es.fraydiegotadeo.laliga.repository.PartidosRepository;
 import es.fraydiegotadeo.laliga.service.ActualizacionService;
 import es.fraydiegotadeo.laliga.service.ClasificacionService;
 import es.fraydiegotadeo.laliga.service.PrediccionService;
+import es.fraydiegotadeo.laliga.service.SimulacionService;
 import es.fraydiegotadeo.laliga.ui.VistaClasificacion;
 import es.fraydiegotadeo.laliga.ui.VistaPartidos;
 import es.fraydiegotadeo.laliga.ui.VistaPrediccion;
+import es.fraydiegotadeo.laliga.ui.VistaSimulacion;
 import javafx.application.Application;
 import javafx.concurrent.Task;
 import javafx.scene.Node;
@@ -50,14 +52,21 @@ public final class App extends Application {
     private final ClasificacionService servicioClasificacion = new ClasificacionService();
     private final ActualizacionService servicioActualizacion = new ActualizacionService(repositorio, descargas);
     private final PrediccionService servicioPrediccion = new PrediccionService(repositorio, descargas);
+    private final SimulacionService servicioSimulacion = new SimulacionService();
+
+    /** Temporadas que se simulan: con 10.000 las probabilidades apenas cambian de una vez a otra. */
+    private static final int SIMULACIONES = 10_000;
+    private static final long SEMILLA = 2026;
 
     // Pantallas
     private final VistaPartidos vistaPartidos = new VistaPartidos();
     private final VistaClasificacion vistaClasificacion = new VistaClasificacion();
     private final VistaPrediccion vistaPrediccion = new VistaPrediccion();
+    private final VistaSimulacion vistaSimulacion = new VistaSimulacion();
 
     // Menú lateral
     private final ToggleButton botonJornada = new ToggleButton("Próxima jornada");
+    private final ToggleButton botonSimulacion = new ToggleButton("Simulación");
     private final ToggleButton botonClasificacion = new ToggleButton("Clasificación");
     private final ToggleButton botonPartidos = new ToggleButton("Partidos");
     /** Es un campo para poder desactivarlo mientras descarga. */
@@ -114,9 +123,11 @@ public final class App extends Application {
         // ToggleGroup: de los botones del grupo solo puede haber uno pulsado a la vez
         ToggleGroup grupo = new ToggleGroup();
         prepararBotonMenu(botonJornada, "nav-jornada", grupo);
+        prepararBotonMenu(botonSimulacion, "nav-simulacion", grupo);
         prepararBotonMenu(botonClasificacion, "nav-clasificacion", grupo);
         prepararBotonMenu(botonPartidos, "nav-partidos", grupo);
         botonJornada.setOnAction(evento -> mostrarJornada());
+        botonSimulacion.setOnAction(evento -> mostrarSimulacion());
         botonClasificacion.setOnAction(evento -> mostrarClasificacion());
         botonPartidos.setOnAction(evento -> mostrarPartidos());
         // Si se pulsa otra vez el botón activo se desmarcaría; así se evita que no quede ninguno
@@ -135,7 +146,7 @@ public final class App extends Application {
         estado.getStyleClass().add("estado-menu");
         estado.setWrapText(true);
 
-        VBox menu = new VBox(titulo, subtitulo, botonJornada, botonClasificacion, botonPartidos,
+        VBox menu = new VBox(titulo, subtitulo, botonJornada, botonSimulacion, botonClasificacion, botonPartidos,
                 hueco, botonActualizar, estado);
         menu.getStyleClass().add("menu");
         return menu;
@@ -196,6 +207,11 @@ public final class App extends Application {
                 vistaPrediccion.getRaiz(), false);
     }
 
+    private void mostrarSimulacion() {
+        cambiarPantalla("Simulación de la liga", "Cómo puede terminar la temporada en curso (método de Monte Carlo)",
+                vistaSimulacion.getRaiz(), false);
+    }
+
     private void mostrarClasificacion() {
         cambiarPantalla("Clasificación", "Tabla calculada con los resultados guardados",
                 vistaClasificacion.getRaiz(), true);
@@ -228,12 +244,14 @@ public final class App extends Application {
             cargarTemporadas();
             estado.setText(textoResumen(tarea.getValue()));
             predecirProximaJornada();
+            simularTemporada();
         });
         tarea.setOnFailed(evento -> {
             botonActualizar.setDisable(false);
             mostrarError("No se han podido actualizar los datos: " + tarea.getException().getMessage());
             // Aunque falle la actualización se intenta predecir con los datos guardados
             predecirProximaJornada();
+            simularTemporada();
         });
 
         // setDaemon(true): si se cierra la ventana, este hilo no impide que el programa termine
@@ -273,6 +291,36 @@ public final class App extends Application {
         tarea.setOnSucceeded(evento -> vistaPrediccion.mostrar(tarea.getValue()));
         tarea.setOnFailed(evento -> vistaPrediccion.mostrarMensaje(
                 "No se ha podido calcular la predicción: " + tarea.getException().getMessage()));
+
+        Thread hilo = new Thread(tarea);
+        hilo.setDaemon(true);
+        hilo.start();
+    }
+
+    /**
+     * Simula en segundo plano el final de la temporada en curso y lo muestra en su pantalla.
+     * Se usa una semilla fija para que, con los mismos datos, salga siempre el mismo resultado.
+     */
+    private void simularTemporada() {
+        vistaSimulacion.mostrarMensaje("Simulando la temporada...");
+
+        Task<SimulacionService.Resultado> tarea = new Task<>() {
+            @Override
+            protected SimulacionService.Resultado call() throws Exception {
+                List<Integer> temporadas = repositorio.listarTemporadas();
+                if (temporadas.isEmpty()) {
+                    throw new IllegalStateException("todavía no hay partidos guardados");
+                }
+                int actual = temporadas.get(0);
+                // Fecha de corte = mañana: cuenta como jugado todo lo que ya tiene resultado
+                return servicioSimulacion.simular(repositorio.listarPartidos(actual),
+                        repositorio.listarPartidos(actual - 1), LocalDate.now().plusDays(1),
+                        SIMULACIONES, SEMILLA);
+            }
+        };
+        tarea.setOnSucceeded(evento -> vistaSimulacion.mostrar(tarea.getValue()));
+        tarea.setOnFailed(evento -> vistaSimulacion.mostrarMensaje(
+                "No se ha podido simular la temporada: " + tarea.getException().getMessage()));
 
         Thread hilo = new Thread(tarea);
         hilo.setDaemon(true);

@@ -19,12 +19,11 @@ Aplicación de escritorio en **Java 21 + JavaFX + MySQL** para consultar varias 
 3. Configurar variables de entorno `LALIGA_DB_URL`, `LALIGA_DB_USER`, `LALIGA_DB_PASSWORD` (ver `.env.example`; **no** subir contraseñas).
 4. En IntelliJ: configuración **LaLiga App** (botón Run/Debug) o **Tests (mvn clean test)**. Desde terminal: `.\mvnw.cmd clean test` y `.\mvnw.cmd javafx:run`.
 5. Abrir la aplicación. **No hay que importar nada**: al arrancar descarga de football-data.co.uk las temporadas que falten (la primera vez, todo el histórico desde 1993/94) y los partidos nuevos de la temporada en curso. El botón **Actualizar datos** vuelve a buscarlos. Sin internet funciona con lo ya guardado.
-6. La aplicación se abre en **Próxima jornada**, con una tarjeta de predicción por partido. En el menú lateral están también **Clasificación** (con las zonas europeas y de descenso) y **Partidos** (organizados por jornadas, con buscador por equipo). El selector de arriba cambia de temporada.
+6. La aplicación se abre en **Próxima jornada**, con una tarjeta de predicción por partido. En el menú lateral están también **Simulación** (cómo puede terminar la temporada), **Clasificación** (con las zonas europeas y de descenso) y **Partidos** (organizados por jornadas, con buscador por equipo). El selector de arriba cambia de temporada.
 
 ## Estado actual
 
-- **Terminado:** histórico 1993/94–2026/27 en MySQL, actualización automática, interfaz con menú lateral (`ui/estilos.css`), clasificación con zonas, partidos por jornadas, predicción de la próxima jornada con backtesting (`docs/MODELO_PREDICCION.md`).
-- **En desarrollo:** simulación Monte Carlo del final de la liga.
+- **Terminado:** histórico 1993/94–2026/27 en MySQL, actualización automática, interfaz con menú lateral (`ui/estilos.css`), clasificación con zonas, partidos por jornadas, predicción de la próxima jornada con backtesting (`docs/MODELO_PREDICCION.md`), simulación Monte Carlo del final de la liga (`docs/SIMULACION.md`).
 - **Pendiente:** goleadores y asistentes, instalador, memoria y manuales.
 
 Probado en Windows 11 con JDK 21 y MySQL 26.10. Consulta `docs/ESTADO_Y_PLAN.md` y `docs/INCIDENCIAS.md`.

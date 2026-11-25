@@ -252,6 +252,11 @@
     -fx-font-weight: bold;
 }
 
+.table-row-cell .table-cell.celda-principal {
+    -fx-text-fill: -color-principal-oscuro;
+    -fx-font-weight: bold;
+}
+
 /* ---------- Tarjetas (Próxima jornada) ---------- */
 
 .tarjeta {
