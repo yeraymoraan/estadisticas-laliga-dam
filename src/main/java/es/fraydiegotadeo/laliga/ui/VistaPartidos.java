@@ -2,28 +2,47 @@ package es.fraydiegotadeo.laliga.ui;
 
 import es.fraydiegotadeo.laliga.model.NombresEquipos;
 import es.fraydiegotadeo.laliga.model.PartidoVista;
+import es.fraydiegotadeo.laliga.service.JornadasService;
 import javafx.collections.FXCollections;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.util.StringConverter;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-/** Pantalla "Partidos": todos los partidos de una temporada con un buscador por equipo. */
+/**
+ * Pantalla "Partidos": los partidos de una temporada organizados por jornadas.
+ * Si se escribe un equipo en el buscador se ven todos sus partidos de la temporada.
+ */
 public final class VistaPartidos {
 
     private final TableView<PartidoVista> tabla = new TableView<>();
     private final TextField buscador = new TextField();
+    private final ComboBox<Integer> selectorJornada = new ComboBox<>();
+    private final Button anterior = new Button("‹");
+    private final Button siguiente = new Button("›");
+    private final Label resumen = new Label();
     private final VBox raiz;
 
-    /** Partidos de la temporada, sin filtrar. */
-    private List<PartidoVista> partidos = new ArrayList<>();
+    /** Jornadas de la temporada y, para cada partido, el número de su jornada. */
+    private List<JornadasService.Jornada> jornadas = new ArrayList<>();
+    private final Map<PartidoVista, Integer> jornadaDePartido = new HashMap<>();
+    private List<PartidoVista> todos = new ArrayList<>();
 
     public VistaPartidos() {
+        Tablas.agregarColumnaCentrada(tabla, "J", partido -> String.valueOf(jornadaDePartido.get(partido)), 45);
         Tablas.agregarColumna(tabla, "FECHA", partido -> Tablas.fecha(partido.fecha()), 100);
         Tablas.agregarColumna(tabla, "LOCAL", partido -> NombresEquipos.completo(partido.local()), 175);
         Tablas.agregarColumnaCentrada(tabla, "RESULTADO", PartidoVista::resultado, 95)
@@ -38,14 +57,49 @@ public final class VistaPartidos {
         tabla.setPlaceholder(new Label("Cargando partidos..."));
         Tablas.ajustarAlAncho(tabla);
 
+        Label aviso = new Label("La jornada se calcula con los partidos que lleva cada equipo; "
+                + "un partido aplazado aparece en la jornada en la que se jugó.");
+        aviso.getStyleClass().add("texto-suave");
+
+        raiz = new VBox(12, crearBarra(), tabla, aviso);
+        VBox.setVgrow(tabla, Priority.ALWAYS);
+    }
+
+    /** Barra de arriba: ‹ Jornada 13 › a la izquierda y el buscador a la derecha. */
+    private HBox crearBarra() {
+        // El selector guarda el número (13) pero enseña "Jornada 13"
+        selectorJornada.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(Integer numero) {
+                if (numero == null) {
+                    return "";
+                }
+                return "Jornada " + numero;
+            }
+
+            @Override
+            public Integer fromString(String texto) {
+                return null; // No se usa: el selector no deja escribir
+            }
+        });
+        selectorJornada.setOnAction(evento -> filtrar());
+        anterior.getStyleClass().add("boton-flecha");
+        siguiente.getStyleClass().add("boton-flecha");
+        anterior.setOnAction(evento -> moverJornada(-1));
+        siguiente.setOnAction(evento -> moverJornada(1));
+
         buscador.setPromptText("Buscar equipo...");
         buscador.getStyleClass().add("buscador");
-        buscador.setMaxWidth(320);
+        buscador.setPrefWidth(280);
         // Listener: cada vez que cambia el texto del buscador se vuelve a filtrar la tabla
         buscador.textProperty().addListener((propiedad, textoAnterior, textoNuevo) -> filtrar());
 
-        raiz = new VBox(12, buscador, tabla);
-        VBox.setVgrow(tabla, Priority.ALWAYS);
+        resumen.getStyleClass().add("texto-suave");
+        Region hueco = new Region();
+        HBox.setHgrow(hueco, Priority.ALWAYS);
+        HBox barra = new HBox(8, anterior, selectorJornada, siguiente, resumen, hueco, buscador);
+        barra.setAlignment(Pos.CENTER_LEFT);
+        return barra;
     }
 
     /** @return el contenedor de la pantalla, para ponerlo en la ventana */
@@ -53,25 +107,66 @@ public final class VistaPartidos {
         return raiz;
     }
 
-    /** Muestra los partidos de una temporada (aplicando el filtro que haya escrito). */
+    /** Recibe los partidos de una temporada, los reparte en jornadas y enseña la última. */
     public void mostrar(List<PartidoVista> partidosTemporada) {
-        partidos = partidosTemporada;
+        todos = partidosTemporada;
+        jornadas = JornadasService.agrupar(partidosTemporada);
+        jornadaDePartido.clear();
+        List<Integer> numeros = new ArrayList<>();
+        for (JornadasService.Jornada jornada : jornadas) {
+            numeros.add(jornada.numero());
+            for (PartidoVista partido : jornada.partidos()) {
+                jornadaDePartido.put(partido, jornada.numero());
+            }
+        }
+        selectorJornada.getItems().setAll(numeros);
+        if (!numeros.isEmpty()) {
+            // Por defecto la última jornada jugada, que es la que más interesa
+            selectorJornada.setValue(numeros.get(numeros.size() - 1));
+        }
         filtrar();
     }
 
-    /** Deja en la tabla solo los partidos del equipo escrito en el buscador. */
+    /** Pasa a la jornada anterior (-1) o a la siguiente (+1), si existe. */
+    private void moverJornada(int salto) {
+        int posicion = selectorJornada.getItems().indexOf(selectorJornada.getValue()) + salto;
+        if (posicion >= 0 && posicion < selectorJornada.getItems().size()) {
+            selectorJornada.setValue(selectorJornada.getItems().get(posicion));
+        }
+    }
+
+    /**
+     * Sin texto en el buscador se ven los partidos de la jornada elegida.
+     * Con texto se ven todos los partidos de la temporada de los equipos que coinciden.
+     */
     private void filtrar() {
         String filtro = buscador.getText() == null ? "" : buscador.getText().trim().toLowerCase();
-
         List<PartidoVista> visibles = new ArrayList<>();
-        for (PartidoVista partido : partidos) {
-            // Se busca en el nombre completo ("Atlético") y en el de Football-Data ("Ath Madrid")
-            String local = partido.local() + " " + NombresEquipos.completo(partido.local());
-            String visitante = partido.visitante() + " " + NombresEquipos.completo(partido.visitante());
-            if (local.toLowerCase().contains(filtro) || visitante.toLowerCase().contains(filtro)) {
-                visibles.add(partido);
+
+        if (filtro.isEmpty()) {
+            Integer numero = selectorJornada.getValue();
+            for (JornadasService.Jornada jornada : jornadas) {
+                if (numero != null && jornada.numero() == numero) {
+                    visibles.addAll(jornada.partidos());
+                }
             }
+            resumen.setText(visibles.size() + " partidos");
+        } else {
+            for (PartidoVista partido : todos) {
+                // Se busca en el nombre completo ("Atlético") y en el de Football-Data ("Ath Madrid")
+                String local = partido.local() + " " + NombresEquipos.completo(partido.local());
+                String visitante = partido.visitante() + " " + NombresEquipos.completo(partido.visitante());
+                if (local.toLowerCase().contains(filtro) || visitante.toLowerCase().contains(filtro)) {
+                    visibles.add(partido);
+                }
+            }
+            resumen.setText(visibles.size() + " partidos en toda la temporada");
         }
+
+        // Mientras se busca un equipo no tiene sentido cambiar de jornada
+        selectorJornada.setDisable(!filtro.isEmpty());
+        anterior.setDisable(!filtro.isEmpty());
+        siguiente.setDisable(!filtro.isEmpty());
         tabla.setItems(FXCollections.observableArrayList(visibles));
     }
 }
