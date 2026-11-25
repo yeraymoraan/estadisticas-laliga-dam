@@ -1,0 +1,6 @@
+# Conexión con MySQL de LaLiga Stats.
+# Copia este archivo con el nombre laliga.properties en la misma carpeta que LaLigaStats.exe
+# y cambia la contraseña por la del usuario que hayas creado en MySQL.
+url=jdbc:mysql://localhost:3306/laliga_dam?serverTimezone=Europe/Madrid
+usuario=laliga_app
+password=CAMBIAR_POR_TU_CLAVE
