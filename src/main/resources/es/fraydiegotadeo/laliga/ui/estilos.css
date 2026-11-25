@@ -236,6 +236,98 @@
     -fx-font-weight: bold;
 }
 
+/* ---------- Tarjetas (Próxima jornada) ---------- */
+
+.tarjeta {
+    -fx-background-color: -color-tarjeta;
+    -fx-border-color: -color-borde;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+    -fx-padding: 16 20 16 20;
+}
+
+.resumen-titulo {
+    -fx-text-fill: -color-texto-suave;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+}
+
+.resumen-numero {
+    -fx-text-fill: -color-principal;
+    -fx-font-size: 30px;
+    -fx-font-weight: bold;
+}
+
+.tarjeta-fecha {
+    -fx-text-fill: -color-texto-suave;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+}
+
+.tarjeta-equipo {
+    -fx-text-fill: -color-texto;
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+}
+
+.barra-trozo {
+    -fx-min-height: 10;
+    -fx-pref-height: 10;
+    -fx-background-radius: 5;
+}
+
+.barra-1 { -fx-background-color: -color-principal; }
+.barra-x { -fx-background-color: #cbd5e1; }
+.barra-2 { -fx-background-color: #334155; }
+
+.prob {
+    -fx-text-fill: -color-texto-suave;
+    -fx-font-size: 12px;
+}
+
+.prob-max {
+    -fx-text-fill: -color-principal-oscuro;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-background-color: -color-principal-claro;
+    -fx-background-radius: 6;
+    -fx-padding: 2 8 2 8;
+}
+
+.tarjeta-datos {
+    -fx-border-color: #f1f2f6 transparent transparent transparent;
+    -fx-padding: 10 0 0 0;
+}
+
+.dato-nombre {
+    -fx-text-fill: -color-texto-suave;
+    -fx-font-size: 11px;
+}
+
+.dato-valor {
+    -fx-text-fill: -color-texto;
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+}
+
+/* Resultado real de un partido ya jugado: verde si se acertó el 1-X-2, rojo si no */
+.chip-acierto, .chip-fallo {
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-background-radius: 6;
+    -fx-padding: 3 8 3 8;
+}
+
+.chip-acierto { -fx-background-color: #dcfce7; -fx-text-fill: #166534; }
+.chip-fallo { -fx-background-color: #fee2e2; -fx-text-fill: #991b1b; }
+
+/* ScrollPane sin borde ni fondo, para que se vean las tarjetas sobre el fondo de la ventana */
+.sin-fondo, .sin-fondo > .viewport {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+    -fx-padding: 0;
+}
+
 /* ---------- Clasificación: número de posición con el color de su zona ---------- */
 
 .posicion {

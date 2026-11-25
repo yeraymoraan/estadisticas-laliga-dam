@@ -11,7 +11,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Prepara la predicción de la próxima jornada: descarga el calendario, carga de MySQL los partidos
@@ -26,14 +28,35 @@ public final class PrediccionService {
     private static final Path ARCHIVO_CALENDARIO = Path.of("data", "fixtures.csv");
 
     /**
+     * Un partido del calendario con su predicción y, si ya se ha jugado, su resultado real.
+     *
+     * Football-Data tarda unos días en cambiar el calendario a la jornada siguiente, así que a veces
+     * el calendario trae partidos que ya tienen resultado. La predicción se sigue haciendo solo con
+     * los partidos anteriores a su fecha, así que es justo compararla con lo que pasó.
+     *
+     * @param resultadoReal el partido ya jugado, o null si todavía no se ha jugado
+     */
+    public record PartidoPredicho(Prediccion prediccion, PartidoVista resultadoReal) {
+
+        public boolean jugado() {
+            return resultadoReal != null;
+        }
+
+        /** @return true si el 1-X-2 más probable fue el que pasó (solo tiene sentido si está jugado) */
+        public boolean acertado() {
+            return jugado() && prediccion.signoMasProbable().equals(BacktestingService.signoReal(resultadoReal));
+        }
+    }
+
+    /**
      * Resultado de predecir la jornada.
      *
-     * @param predicciones  un elemento por partido del calendario
+     * @param partidos      un elemento por partido del calendario
      * @param sinConexion   true si no se pudo descargar y se usó el último calendario guardado
      * @param fiabilidad    backtesting de la temporada anterior completa (null si no hay datos)
      * @param temporadaEvaluada año de inicio de la temporada usada en el backtesting
      */
-    public record Jornada(List<Prediccion> predicciones, boolean sinConexion,
+    public record Jornada(List<PartidoPredicho> partidos, boolean sinConexion,
                           BacktestingService.Resultado fiabilidad, int temporadaEvaluada) {
     }
 
@@ -72,17 +95,25 @@ public final class PrediccionService {
         // listarTemporadas devuelve primero la más reciente
         int actual = temporadas.get(0);
         List<PartidoVista> anterior = repositorio.listarPartidos(actual - 1);
+        List<PartidoVista> temporadaActual = repositorio.listarPartidos(actual);
         List<PartidoVista> historial = new ArrayList<>(anterior);
-        historial.addAll(repositorio.listarPartidos(actual));
+        historial.addAll(temporadaActual);
 
-        List<Prediccion> predicciones = new ArrayList<>();
+        // Mapa "local|visitante" → partido jugado, para saber rápido si un partido ya tiene resultado
+        Map<String, PartidoVista> jugados = new HashMap<>();
+        for (PartidoVista partido : temporadaActual) {
+            jugados.put(partido.local() + "|" + partido.visitante(), partido);
+        }
+
+        List<PartidoPredicho> partidos = new ArrayList<>();
         for (PartidoPendiente partido : pendientes) {
             // Un modelo por partido, entrenado solo con lo jugado antes de su fecha
             ModeloPoisson modelo = new ModeloPoisson(historial, partido.fecha());
-            predicciones.add(modelo.predecir(partido.fecha(), partido.local(), partido.visitante()));
+            Prediccion prediccion = modelo.predecir(partido.fecha(), partido.local(), partido.visitante());
+            partidos.add(new PartidoPredicho(prediccion, jugados.get(partido.local() + "|" + partido.visitante())));
         }
 
-        return new Jornada(predicciones, sinConexion, fiabilidad(actual - 1, anterior), actual - 1);
+        return new Jornada(partidos, sinConexion, fiabilidad(actual - 1, anterior), actual - 1);
     }
 
     /** Backtesting de una temporada ya terminada, usando también la anterior a ella. */

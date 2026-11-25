@@ -29,7 +29,6 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
 
-import java.io.IOException;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -79,7 +78,6 @@ public final class App extends Application {
     @Override
     public void start(Stage ventana) {
         ventana.setTitle("LaLiga Stats · Proyecto DAM");
-        vistaPrediccion.getBotonPredecir().setOnAction(evento -> predecirProximaJornada());
 
         // BorderPane divide la ventana en zonas: el menú a la izquierda (left) y la pantalla en el centro
         BorderPane raiz = new BorderPane();
@@ -229,10 +227,13 @@ public final class App extends Application {
             botonActualizar.setDisable(false);
             cargarTemporadas();
             estado.setText(textoResumen(tarea.getValue()));
+            predecirProximaJornada();
         });
         tarea.setOnFailed(evento -> {
             botonActualizar.setDisable(false);
             mostrarError("No se han podido actualizar los datos: " + tarea.getException().getMessage());
+            // Aunque falle la actualización se intenta predecir con los datos guardados
+            predecirProximaJornada();
         });
 
         // setDaemon(true): si se cierra la ventana, este hilo no impide que el programa termine
@@ -256,16 +257,26 @@ public final class App extends Application {
         return texto;
     }
 
-    /** Predice la próxima jornada y la muestra en su pantalla. */
+    /**
+     * Predice la próxima jornada en segundo plano y la muestra en su pantalla.
+     * Se llama sola después de actualizar los datos, así el usuario no tiene que pulsar nada.
+     */
     private void predecirProximaJornada() {
-        try {
-            PrediccionService.Jornada jornada = servicioPrediccion.predecirProximaJornada();
-            vistaPrediccion.mostrar(jornada);
-            String origen = jornada.sinConexion() ? "sin conexión, se usa el último descargado" : "descargado de Football-Data";
-            estado.setText(jornada.predicciones().size() + " partidos predichos (calendario " + origen + ").");
-        } catch (IOException | SQLException | IllegalStateException ex) {
-            mostrarError("No se ha podido hacer la predicción: " + ex.getMessage());
-        }
+        vistaPrediccion.mostrarMensaje("Calculando predicciones...");
+
+        Task<PrediccionService.Jornada> tarea = new Task<>() {
+            @Override
+            protected PrediccionService.Jornada call() throws Exception {
+                return servicioPrediccion.predecirProximaJornada();
+            }
+        };
+        tarea.setOnSucceeded(evento -> vistaPrediccion.mostrar(tarea.getValue()));
+        tarea.setOnFailed(evento -> vistaPrediccion.mostrarMensaje(
+                "No se ha podido calcular la predicción: " + tarea.getException().getMessage()));
+
+        Thread hilo = new Thread(tarea);
+        hilo.setDaemon(true);
+        hilo.start();
     }
 
     /** Rellena el selector con las temporadas guardadas en MySQL y carga la seleccionada. */
