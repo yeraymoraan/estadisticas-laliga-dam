@@ -18,12 +18,17 @@ Aplicación de escritorio en **Java 21 + JavaFX + MySQL** para consultar varias 
 2. Ejecutar el script `sql/schema.sql` en MySQL.
 3. Configurar variables de entorno `LALIGA_DB_URL`, `LALIGA_DB_USER`, `LALIGA_DB_PASSWORD` (ver `.env.example`; **no** subir contraseñas).
 4. En IntelliJ: configuración **LaLiga App** (botón Run/Debug) o **Tests (mvn clean test)**. Desde terminal: `.\mvnw.cmd clean test` y `.\mvnw.cmd javafx:run`.
-5. Descargar manualmente uno o varios CSV de Primera División (`SP1`). Dentro de la aplicación, seleccionar **Importar CSV**, indicar el año de inicio de la temporada (ej. 2025 para 2025/26) y escoger el archivo.
-6. Seleccionar la temporada para consultar partidos y datos disponibles.
+5. Abrir la aplicación. **No hay que importar nada**: al arrancar descarga de football-data.co.uk las temporadas que falten (la primera vez, todo el histórico desde 1993/94) y los partidos nuevos de la temporada en curso. El botón **Actualizar datos** vuelve a buscarlos. Sin internet funciona con lo ya guardado.
+6. Seleccionar la temporada para consultar partidos y clasificación, o abrir **Próxima jornada** para ver la predicción.
+7. Opcional: **Importar CSV** permite cargar un archivo propio indicando el año de inicio de la temporada (ej. 2025 para 2025/26).
 
 ## Estado actual
 
-**Primer avance**: estructura técnica y funcionalidad de importación/consulta inicial. Las predicciones y simulaciones siguen **pendientes**. Consulta `docs/ESTADO_Y_PLAN.md` para el progreso, pruebas y próximos pasos. **No afirmar que funciona en Windows antes de ejecutarlo allí**.
+- **Terminado:** histórico 1993/94–2026/27 en MySQL, actualización automática, consulta de partidos y clasificación, predicción de la próxima jornada con backtesting (`docs/MODELO_PREDICCION.md`).
+- **En desarrollo:** simulación Monte Carlo del final de la liga.
+- **Pendiente:** goleadores y asistentes, diseño de la interfaz, instalador, memoria y manuales.
+
+Probado en Windows 11 con JDK 21 y MySQL 26.10. Consulta `docs/ESTADO_Y_PLAN.md` y `docs/INCIDENCIAS.md`.
 
 ## Arquitectura
 

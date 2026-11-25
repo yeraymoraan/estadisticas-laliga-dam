@@ -82,6 +82,27 @@ con la que luego se mide):
 | 10 | 50,0 % | 0,5953 |
 | 20 | 50,3 % | 0,6009 |
 
+## Primera predicción real (jornada del 20 al 23/11/2026)
+
+El 23/11/2026 la aplicación predijo esta jornada con los datos disponibles hasta el 08/11/2026 (Football-Data
+todavía no había publicado ninguno de estos resultados). El 25/11/2026 la actualización automática descargó
+los resultados reales:
+
+| Partido | Predicción (1-X-2) | Pronóstico | Resultado real | ¿Acierto? |
+|---|---|---|---|---|
+| Ath Bilbao – Espanol | 42 / 28 / 30 % | 1 | 0-1 | No |
+| Alaves – La Coruna | 39 / 27 / 34 % | 1 | 3-1 | Sí |
+| Vallecano – Valencia | 50 / 27 / 23 % | 1 | 0-1 | No |
+| Sevilla – Betis | 32 / 26 / 42 % | 2 | 1-1 | No |
+| Real Madrid – Celta | 59 / 24 / 17 % | 1 | 2-1 | Sí |
+| Barcelona – Villarreal | 76 / 15 / 9 % | 1 | 3-2 | Sí |
+| Santander – Sociedad | 40 / 22 / 38 % | 1 | 3-2 | Sí |
+| Osasuna – Malaga | 57 / 25 / 18 % | 1 | 1-0 | Sí |
+| Getafe – Ath Madrid | 33 / 31 / 35 % | 2 | 0-3 | Sí |
+| Levante – Elche | 43 / 23 / 35 % | 1 | 1-1 | No |
+
+**6 de 10 aciertos (60 %).** Una sola jornada es una muestra muy pequeña; la fiabilidad real es la del backtesting.
+
 ## Limitaciones
 
 - Supone que los goles de los dos equipos son independientes (en la realidad los empates 0-0 y 1-1
